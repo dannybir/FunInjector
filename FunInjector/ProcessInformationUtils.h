@@ -27,23 +27,39 @@ namespace FunInjector
 		ProcessInformationUtils(HANDLE ProcHandle, bool Enumerate = true);
 		~ProcessInformationUtils();
 
+		// This function must be called before calling the module/function address query
+		// It enumerates and retrieves information regarding the modules of the process
+		EOperationStatus EnumerateProcessModules();
+
 		// Refreshes the information stored in the symbol handler for the remote process modules
 		// Use this if you know the module layout for the process changed since Enumerate was called
-		EOperationStatus RefreshProcessModulesInfo() const;
+		EOperationStatus RefreshProcessModulesInfo();
 
 		// Return the absolute address of a module in remote process memory
 		// Enumerate/Refresh must be called before to make module has been enumerated
-		DWORD64 GetModuleAddress(const std::wstring &ModuleName) const;
+		DWORD64 GetModuleAddress(const std::wstring &ModuleName) const noexcept;
 
 		// Return the aboslute address of the function in the process
 		// Enumerate/Refresh must be called before
-		DWORD64 GetFunctionAddress(const std::wstring_view FunctionName) const;
+		DWORD64 GetFunctionAddress(const std::wstring_view FunctionName) const noexcept;
 
 		// Read some bytes from the remote process into a buffer
 		// Process handle must be opened with correct access rights or this will fail
-		ByteBuffer ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const;
+		ByteBuffer ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const noexcept;
+
+		// Write a supplied buffer to a remote process at the given location
+		// Process handle must be opened with correct access rights or this will fail
+		EOperationStatus WriteBufferToProcess(const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept;
+
+		// Find a free memory block that can hold FreeSize amount of room
+		// Only looks for free pages, starts looking from ntdll.dll location going down in addresses
+		// Will return the address of the start of the free page block
+		DWORD64	FindFreeMemoryRegion(SIZE_T FreeMemorySize, bool ScanDown = true) const noexcept;
+
+		// Allocates a block of memory to be ready for execution, returns the allocation base
+		DWORD64 AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept;
+
 	private:
-		EOperationStatus EnumerateProcessModules();
 		EOperationStatus PrepareForModuleEnumeration();
 		EOperationStatus LoadSymbolsForProcessModules();
 		EOperationStatus LoadSymbolForModule(const std::wstring_view ModulePath, const std::wstring_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize);

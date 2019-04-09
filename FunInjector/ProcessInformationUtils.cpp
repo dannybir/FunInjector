@@ -43,7 +43,10 @@ namespace FunInjector
 	{
 		if (Enumerate)
 		{
-			EnumerateProcessModules();
+			if (EnumerateProcessModules() == EOperationStatus::FAIL)
+			{
+				LOG_ERROR << L"Failed to enumerate modules for process handle: " << std::hex << ProcHandle;
+			}
 		}
 	}
 
@@ -56,23 +59,27 @@ namespace FunInjector
 			{
 				LOG_WARNING << L"Failed to clear symbol information, might encounter unexpected results in module enumeration";
 			}
+			// Close the handle, its not needed anymore
+			if (!PerformWinApiCall(L"CloseHandle", CloseHandle, ProcessHandle))
+			{
+				LOG_ERROR << L"Failed to close handle: " << std::hex << ProcessHandle << L", handle will leak";
+			}
 		}
 
 
 	}
 
-	EOperationStatus ProcessInformationUtils::RefreshProcessModulesInfo() const
+	EOperationStatus ProcessInformationUtils::RefreshProcessModulesInfo()
 	{
-		if (!SymRefreshModuleList(ProcessHandle))
+		if (LoadSymbolsForProcessModules() == EOperationStatus::FAIL)
 		{
-			LOG_ERROR << L"Failed to refresh module information status, extracting information for modules might fail";
 			return EOperationStatus::FAIL;
 		}
 
 		return EOperationStatus::SUCCESS;
 	}
 
-	DWORD64 ProcessInformationUtils::GetModuleAddress(const std::wstring &ModuleName) const
+	DWORD64 ProcessInformationUtils::GetModuleAddress(const std::wstring &ModuleName) const noexcept
 	{
 		const auto& FoundMapIter = ProcessModuleMap.find(ModuleName);
 		if (FoundMapIter != ProcessModuleMap.cend())
@@ -85,7 +92,7 @@ namespace FunInjector
 		return 0;
 	}
 
-	DWORD64 ProcessInformationUtils::GetFunctionAddress(const std::wstring_view FunctionName) const
+	DWORD64 ProcessInformationUtils::GetFunctionAddress(const std::wstring_view FunctionName) const noexcept
 	{
 		SYMBOL_INFOW Symbol{ 0 };
 		Symbol.SizeOfStruct = sizeof(SYMBOL_INFO);
@@ -99,7 +106,7 @@ namespace FunInjector
 		return Symbol.Address;
 	}
 
-	ByteBuffer ProcessInformationUtils::ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const
+	ByteBuffer ProcessInformationUtils::ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const noexcept
 	{
 		// This is the buffer we will read into, pre-allocate with supplied size
 		ByteBuffer ReadBuffer(ReadSize);
@@ -122,6 +129,106 @@ namespace FunInjector
 			<< L", there might be an issue with access qualifiers for the process handle, will return an empty buffer, Error=" << GetLastError();
 
 		return ByteBuffer();
+	}
+
+	EOperationStatus ProcessInformationUtils::WriteBufferToProcess(const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
+	{
+		// This is the buffer we will read into, pre-allocate with supplied size
+		SIZE_T ActualWriteSize = 0;
+
+		if (WriteProcessMemory(ProcessHandle, reinterpret_cast<PVOID>(WriteAddress), &WriteBuffer[0], WriteSize, &ActualWriteSize))
+		{
+			// Check that we read the amount we wanted
+			if (WriteSize == ActualWriteSize)
+			{
+				return EOperationStatus::SUCCESS;
+			}
+
+			LOG_ERROR << L"Tried to write: " << WriteSize << L" bytes to from memory address: " << std::hex << WriteAddress
+				<< L", but was only able to write: " << ActualWriteSize << L", consider this operation as failed";
+			return EOperationStatus::FAIL;
+		}
+
+		LOG_ERROR << L"Failed to write: " << WriteSize << L" bytes from to memory address: " << std::hex << WriteAddress
+			<< L", there might be an issue with access qualifiers for the process handle, consider this operation as failed, Error=" << GetLastError();
+
+		return EOperationStatus::FAIL;
+	}
+
+	DWORD64 ProcessInformationUtils::FindFreeMemoryRegion(SIZE_T FreeMemorySize, bool ScanDown ) const noexcept
+	{
+		PVOID ScanLocation = reinterpret_cast<PVOID>(GetModuleAddress(L"ntdll.dll"));
+
+		// Get information about the memory layout at the location of the ntdll module
+		MEMORY_BASIC_INFORMATION MemInfo{ 0 };
+		if (VirtualQueryEx(ProcessHandle, ScanLocation, &MemInfo, sizeof(MemInfo)) == 0)
+		{
+			LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
+			return 0;
+		}
+
+		// Keep trying to find a region big enough to fit 
+		while (MemInfo.State != MEM_FREE || MemInfo.RegionSize < FreeMemorySize )
+		{
+			// Go up/down in addresses depenending on ScanDown parameter, skip entire unwanted regions
+			int DirectionMultiplier = (ScanDown) ? -1 : 1;
+			ScanLocation = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocation) + (DirectionMultiplier * MemInfo.RegionSize));
+
+			if (VirtualQueryEx(ProcessHandle, ScanLocation, &MemInfo, sizeof(MemInfo)) == 0)
+			{
+				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
+				return 0;
+			}
+
+			if (reinterpret_cast<DWORD64>(MemInfo.BaseAddress) == 0)
+			{
+				// Probably reached memory start here and found nothing
+				LOG_WARNING << L"While looking for free memory, got to region with BaseAddress = 0";
+				return 0;
+			}
+		}
+
+		LOG_DEBUG << L"Found a free memory region with size: " << MemInfo.RegionSize << L", in location: " << std::hex << MemInfo.BaseAddress;
+		return reinterpret_cast<DWORD64>(ScanLocation);
+	}
+
+	DWORD64 ProcessInformationUtils::AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept
+	{
+		// First we allocate the block with only ReadWrite priviliges, we then utilize VirtualProtectEx to change it to executable
+		PVOID AllocationBase = VirtualAllocEx(ProcessHandle, reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+		if (AllocationBase != nullptr)
+		{
+			return reinterpret_cast<DWORD64>(AllocationBase);
+		}
+
+		// If allocating PAGE_EXECUTE_READWRITE fails, try to allocate instead PAGE_READWRITE and then reprotecting the memory
+		LOG_WARNING << L"Failed to allocate: " << AllocationSize << L" bytes in memory address: "
+			<< std::hex << MemoryAddress << L" with PAGE_EXECUTE_READWRITE protection, Error= " << GetLastError();
+
+		AllocationBase = VirtualAllocEx(ProcessHandle, reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+		if (AllocationBase == nullptr)
+		{
+			// We fail to allocate even a RW page, guess something is wrong with the process handle
+			LOG_WARNING << L"Failed to allocate: " << AllocationSize << L" bytes in memory address: "
+				<< std::hex << MemoryAddress << L" with PAGE_READWRITE protection. Process handle may have insufficent access priviliges"
+				<< L", Error= " << GetLastError();
+
+			return 0;
+		}
+
+		// Try to reprotect the page to be executeable
+		DWORD OldProtect = 0;
+		if (!VirtualProtectEx(ProcessHandle, AllocationBase, AllocationSize, PAGE_EXECUTE_READWRITE, &OldProtect))
+		{
+			LOG_ERROR << L"Failed to reprotect memory address: " << std::hex << AllocationBase << L" with PAGE_EXECUTE_READWRITE protection" 
+				<< L", although allocation was successeful, the allocated is not executeable, so we return 0" << L", Error= " << GetLastError();;
+			return 0;
+		}
+
+		LOG_DEBUG << L"Successefully Allocated: " << AllocationSize << L" bytes in memory address: "
+			<< std::hex << MemoryAddress << L" with PAGE_EXECUTE_READWRITE protection";
+
+		return reinterpret_cast<DWORD64>(AllocationBase);
 	}
 
 	EOperationStatus ProcessInformationUtils::EnumerateProcessModules()
@@ -181,6 +288,7 @@ namespace FunInjector
 
 		return EOperationStatus::SUCCESS;
 	}
+
 	EOperationStatus ProcessInformationUtils::LoadSymbolsForProcessModules()
 	{
 		// To load the modules, we must first enumerate them to get more information
@@ -223,14 +331,14 @@ namespace FunInjector
 			}
 
 			// Get module path, filesystem path to the module file
-			WCHAR ModulePathname[MAX_STRING_LEN];
+			WCHAR ModulePathname[MAX_STRING_LEN] = { 0 };
 			if (!PerformWinApiCall( L"GetModuleFilenameExWPtr", GetModuleFilenameExWPtr, ProcessHandle, ModuleListArrPtr[i], ModulePathname, MAX_STRING_LEN))
 			{
 				continue;
 			}
 
 			// Get module name
-			WCHAR ModuleName[MAX_STRING_LEN];
+			WCHAR ModuleName[MAX_STRING_LEN] = { 0 };
 			if (!PerformWinApiCall( L"GetModuleBaseNameWPtr", GetModuleBaseNameWPtr,ProcessHandle, ModuleListArrPtr[i], ModuleName, MAX_STRING_LEN))
 			{
 				continue;
