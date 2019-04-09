@@ -23,4 +23,13 @@
 #include <plog/Log.h>
 #include <plog/Appenders/ColorConsoleAppender.h>
 
+// Strings
+#include <string>
+#include <string_view>
+
+// Basic types
+#include <vector>
+#include <unordered_map>
+#include <type_traits>
+
 #endif //PCH_H

@@ -5,5 +5,11 @@
 
 namespace FunInjector
 {
+	enum class EOperationStatus
+	{
+		SUCCESS,
+		FAIL,
+	};
+
 	void InjectDll();
 }

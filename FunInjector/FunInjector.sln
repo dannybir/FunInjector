@@ -1,13 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28729.10
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.438
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FunInjector", "FunInjector.vcxproj", "{DDCEF22B-9F6C-4471-8A6B-DF619BA43289}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FunInjectorTests", "..\FunInjectorTests\FunInjectorTests.vcxproj", "{91706434-93E1-4845-AB23-E2E1980C41E8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FunInjectorTestConsoleApp", "..\FunInjectorTestConsoleApp\FunInjectorTestConsoleApp.vcxproj", "{ABA92EAC-5A18-4FEC-9B33-2FAA9C160F72}"
+	ProjectSection(ProjectDependencies) = postProject
+		{DDCEF22B-9F6C-4471-8A6B-DF619BA43289} = {DDCEF22B-9F6C-4471-8A6B-DF619BA43289}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

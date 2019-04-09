@@ -11,7 +11,7 @@
 // Helper macros that get context info
 
 #if defined(_MSC_VER) && _MSC_VER >= 1600 && !defined(__INTELLISENSE__) && !defined(__INTEL_COMPILER) // >= Visual Studio 2010, skip IntelliSense and Intel Compiler
-#   define PLOG_GET_THIS()      __if_exists(this) { this } __if_not_exists(this) { 0 }
+#   define PLOG_GET_THIS()      0
 #else
 #   define PLOG_GET_THIS()      0
 #endif

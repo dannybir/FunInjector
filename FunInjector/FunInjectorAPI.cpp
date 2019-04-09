@@ -4,6 +4,8 @@
 #include "pch.h"
 #include "FunInjectorAPI.h"
 
+#include "ProcessInformationUtils.h"
+
 namespace FunInjector
 {
 	// TODO: This is an example of a library function
@@ -12,7 +14,12 @@ namespace FunInjector
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
 		plog::init(plog::debug, &ColorConsoleLogger);
 
-		LOG_ERROR << "ERROR";
+		DWORD ProcId = 25908;
+		auto ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcId);
+
+		ProcessInformationUtils ProcUtils(ProcessHandle, true);
+		ProcUtils.GetFunctionAddress(L"CreateFileW");
+		ProcUtils.GetModuleAddress(L"ntdll");
 	}
 }
 
