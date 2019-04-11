@@ -31,5 +31,6 @@
 #include <vector>
 #include <unordered_map>
 #include <type_traits>
+#include "ByteBuffer.h"
 
 #endif //PCH_H

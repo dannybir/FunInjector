@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ProcessInformationUtils.h"
 
 namespace FunInjector
 {

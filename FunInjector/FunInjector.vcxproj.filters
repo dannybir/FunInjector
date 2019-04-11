@@ -15,6 +15,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="AssemblyCode">
+      <UniqueIdentifier>{38fd80e5-e688-4774-ac56-e79b45a0403e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -31,6 +34,12 @@
     </ClInclude>
     <ClInclude Include="FunInjectorAPI.h">
       <Filter>API</Filter>
+    </ClInclude>
+    <ClInclude Include="AssemblyCodeGenerator.h">
+      <Filter>AssemblyCode</Filter>
+    </ClInclude>
+    <ClInclude Include="ByteBuffer.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

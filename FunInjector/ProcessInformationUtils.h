@@ -17,9 +17,6 @@ namespace FunInjector
 	// Maximum string length for stack defined character arrays that are used here for simplicity and WinApi compatibility
 	constexpr auto MAX_STRING_LEN = 2048;
 
-	// All memory read or write function should return a byte buffer, which is just a std::vector of byte sized data type
-	using ByteBuffer = std::vector< unsigned char >;
-
 	// TODO: Turn to singleton
 	class ProcessInformationUtils
 	{
@@ -54,10 +51,14 @@ namespace FunInjector
 		// Find a free memory block that can hold FreeSize amount of room
 		// Only looks for free pages, starts looking from ntdll.dll location going down in addresses
 		// Will return the address of the start of the free page block
-		DWORD64	FindFreeMemoryRegion(SIZE_T FreeMemorySize, bool ScanDown = true) const noexcept;
+		DWORD64	FindFreeMemoryRegion(DWORD64 ScanLocation, SIZE_T FreeMemorySize, bool ScanDown = true) const noexcept;
 
 		// Allocates a block of memory to be ready for execution, returns the allocation base
 		DWORD64 AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept;
+
+		// Utilizies the two previous functions to scan the memory and locate a free memory region which could be allocated
+		// Returns the address to the beginning of aformentioned memory region
+		DWORD64 FindAndAllocateExecuteMemoryInProcess(SIZE_T AllocSize) const noexcept;
 
 	private:
 		EOperationStatus PrepareForModuleEnumeration();

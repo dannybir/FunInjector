@@ -141,6 +141,7 @@ namespace FunInjector
 			// Check that we read the amount we wanted
 			if (WriteSize == ActualWriteSize)
 			{
+				LOG_DEBUG << L"Succussefully written: " << ActualWriteSize << L" bytes to address: " << std::hex << WriteAddress;
 				return EOperationStatus::SUCCESS;
 			}
 
@@ -155,13 +156,13 @@ namespace FunInjector
 		return EOperationStatus::FAIL;
 	}
 
-	DWORD64 ProcessInformationUtils::FindFreeMemoryRegion(SIZE_T FreeMemorySize, bool ScanDown ) const noexcept
+	DWORD64 ProcessInformationUtils::FindFreeMemoryRegion(DWORD64 ScanLocation, SIZE_T FreeMemorySize, bool ScanDown ) const noexcept
 	{
-		PVOID ScanLocation = reinterpret_cast<PVOID>(GetModuleAddress(L"ntdll.dll"));
+		PVOID ScanLocationPtr = reinterpret_cast<PVOID>(ScanLocation);
 
-		// Get information about the memory layout at the location of the ntdll module
+		// Get information about the memory layout at the start of the scan location
 		MEMORY_BASIC_INFORMATION MemInfo{ 0 };
-		if (VirtualQueryEx(ProcessHandle, ScanLocation, &MemInfo, sizeof(MemInfo)) == 0)
+		if (VirtualQueryEx(ProcessHandle, ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
 		{
 			LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
 			return 0;
@@ -172,9 +173,9 @@ namespace FunInjector
 		{
 			// Go up/down in addresses depenending on ScanDown parameter, skip entire unwanted regions
 			int DirectionMultiplier = (ScanDown) ? -1 : 1;
-			ScanLocation = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocation) + (DirectionMultiplier * MemInfo.RegionSize));
+			ScanLocationPtr = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocationPtr) + (DirectionMultiplier * MemInfo.RegionSize));
 
-			if (VirtualQueryEx(ProcessHandle, ScanLocation, &MemInfo, sizeof(MemInfo)) == 0)
+			if (VirtualQueryEx(ProcessHandle, ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
 			{
 				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
 				return 0;
@@ -189,15 +190,16 @@ namespace FunInjector
 		}
 
 		LOG_DEBUG << L"Found a free memory region with size: " << MemInfo.RegionSize << L", in location: " << std::hex << MemInfo.BaseAddress;
-		return reinterpret_cast<DWORD64>(ScanLocation);
+		return reinterpret_cast<DWORD64>(ScanLocationPtr);
 	}
 
 	DWORD64 ProcessInformationUtils::AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept
 	{
-		// First we allocate the block with only ReadWrite priviliges, we then utilize VirtualProtectEx to change it to executable
 		PVOID AllocationBase = VirtualAllocEx(ProcessHandle, reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (AllocationBase != nullptr)
 		{
+			LOG_DEBUG << L"Successefully Allocated: " << AllocationSize << L" bytes in memory address: "
+				<< std::hex << MemoryAddress << L" with PAGE_EXECUTE_READWRITE protection";
 			return reinterpret_cast<DWORD64>(AllocationBase);
 		}
 
@@ -262,6 +264,26 @@ namespace FunInjector
 		}
 
 		return EOperationStatus::SUCCESS;
+	}
+
+	DWORD64 ProcessInformationUtils::FindAndAllocateExecuteMemoryInProcess(SIZE_T AllocSize) const noexcept
+	{
+		// First find free memory, we start the scan from location of ntdll.dll in the process
+		// The OS will always allocate ntdll to the same address location for all the processes 
+		DWORD64 NtdllAddress = GetModuleAddress(L"ntdll.dll");
+
+		auto FreeMemoryRegionAddress = NtdllAddress;
+		DWORD64 AllocationAddress = 0;
+		// Scan down in addresses until a suitable memory region is found
+		// If AllocSize is too big, its possible we won't find anything
+		do
+		{
+			FreeMemoryRegionAddress = FindFreeMemoryRegion(FreeMemoryRegionAddress, AllocSize);
+			AllocationAddress = AllocateMemoryInProcessForExecution(FreeMemoryRegionAddress, AllocSize);
+
+		} while (FreeMemoryRegionAddress != 0 && AllocationAddress == 0);
+
+		return AllocationAddress;
 	}
 
 	EOperationStatus ProcessInformationUtils::PrepareForModuleEnumeration()
@@ -365,9 +387,11 @@ namespace FunInjector
 		// SymLoadModule loads symbols for the supplied module, but in deffered mode, that information is not actually created until SymGetModuleInfo is called
 		// So its very important to call SymGetModuleInfo AFTER SymLoadModule everytime!
 
-		if (!SymLoadModuleExW(ProcessHandle, NULL, ModulePath.data(), ModuleName.data(), ModuleBase, ModuleSize, NULL, 0))
+		auto LoadedBaseAddr = SymLoadModuleExW(ProcessHandle, NULL, ModulePath.data(), ModuleName.data(), ModuleBase, ModuleSize, NULL, 0);
+		auto LastError = GetLastError();
+		if ( LoadedBaseAddr == 0 && LastError != 0 )
 		{
-			LOG_WARNING << L"SymLoadModuleExW failed for module: " << ModulePath;
+			LOG_WARNING << L"SymLoadModuleExW failed for module: " << ModulePath << L", Error= " << std::hex << LastError;
 			return EOperationStatus::FAIL;
 		}
 
@@ -375,7 +399,7 @@ namespace FunInjector
 		ModuleAdditionalInfo.SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
 		if (!PerformWinApiCall( L"SymGetModuleInfoW64", SymGetModuleInfoW64, ProcessHandle, ModuleBase, &ModuleAdditionalInfo))
 		{
-			LOG_WARNING << L"SymGetModuleInfoW64 failed for module: " << ModulePath;
+			LOG_WARNING << L"SymGetModuleInfoW64 failed for module: " << ModulePath << L", Error= " << std::hex << GetLastError();;
 			return EOperationStatus::FAIL;
 		}
 
