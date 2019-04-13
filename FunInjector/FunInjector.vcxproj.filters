@@ -18,6 +18,9 @@
     <Filter Include="AssemblyCode">
       <UniqueIdentifier>{38fd80e5-e688-4774-ac56-e79b45a0403e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Injectors">
+      <UniqueIdentifier>{81e7be5e-93a5-428d-b76e-c8fdb3842308}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -25,12 +28,6 @@
     </ClInclude>
     <ClInclude Include="ProcessInformationUtils.h">
       <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="RemoteHook.h">
-      <Filter>RemoteHook</Filter>
-    </ClInclude>
-    <ClInclude Include="RemoteHookGenerator.h">
-      <Filter>RemoteHook</Filter>
     </ClInclude>
     <ClInclude Include="FunInjectorAPI.h">
       <Filter>API</Filter>
@@ -41,6 +38,15 @@
     <ClInclude Include="ByteBuffer.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="IProcessInjector.h">
+      <Filter>Injectors</Filter>
+    </ClInclude>
+    <ClInclude Include="FuncHookProcessInjector.h">
+      <Filter>Injectors</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -49,14 +55,11 @@
     <ClCompile Include="ProcessInformationUtils.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="RemoteHook.cpp">
-      <Filter>RemoteHook</Filter>
-    </ClCompile>
-    <ClCompile Include="RemoteHookGenerator.cpp">
-      <Filter>RemoteHook</Filter>
-    </ClCompile>
     <ClCompile Include="FunInjectorAPI.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FuncHookProcessInjector.cpp">
+      <Filter>Injectors</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

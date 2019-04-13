@@ -6,13 +6,10 @@
 namespace FunInjector
 {
 	// This instruction can be used in x64 and x86
-	// For x86, we must cast to DWORD so that the displacement is limited to 4 bytes
-	static ByteBuffer GenerateNearRelativeJump(DWORD64 JumpFrom64, DWORD64 JumpTo64, bool isX86 ) noexcept
+	// Be aware that this allows 2GB maximum relative displacement due to limitation of a signed 4 byte displacement
+	// The long type displacement is sign extended ( keeps sign after extending ) to 64bit in 64bit mode
+	static ByteBuffer GenerateRelativeJumpCode( DWORD64 JumpFrom, DWORD64 JumpTo ) noexcept
 	{
-		// Cast to a 32bit address if we wish the displacement to be 32bit in size
-		auto JumpFrom = (isX86) ? static_cast<DWORD>(JumpFrom64) : JumpFrom64;
-		auto JumpTo = (isX86) ? static_cast<DWORD>(JumpTo64) : JumpTo64;
-
 		ByteBuffer JumpInstruction;
 
 		// e9 - jmp opcode
@@ -22,44 +19,75 @@ namespace FunInjector
 		// We need to first calculate the displacement in terms of RIP = RIP + 32
 
 		// The instruction is 5 bytes in total, 4 bytes for the displacement and 1 for the opcode
-		int InstructionSize = 0x5;
+		int InstructionSize = 1 + sizeof(long);
 		auto JumpStart = static_cast<long>(JumpFrom + InstructionSize);
 		auto JumpDisplacement = static_cast<long>(JumpTo) - JumpStart;
 
 		// Turn the displacement into a byte array and append to the instruction byte array
-		// JumpInstruction should now contain 0xe9 0x?? 0x?? 0x?? 0x??
-		auto JumpDisplacementBuffer = IntegerToByteBuffer(JumpDisplacement);
-		JumpInstruction.insert(std::end(JumpInstruction), std::begin(JumpDisplacementBuffer), std::end(JumpDisplacementBuffer));
-
+		AppendIntegerToBuffer(JumpInstruction, JumpDisplacement);
+		
 		return JumpInstruction;
 	}
 
-	// This instruction can be used in 32bit only with 32bit addresses
-	static ByteBuffer GenerateNearAbsoluteJump(DWORD64 JumpTo) noexcept
+	// This instruction can be used in 32bit but in this case we'll only use it in 64bit
+	static ByteBuffer GenerateAbsoluteJump64Code(DWORD64 JumpTo) noexcept
 	{
 		ByteBuffer JumpInstruction;
 
-		// 0xff 0x25 is the near absolute jump where the operand is a 64 bit address 
+		// 0xff 0x25 is a near absolute jump, 0x25 is a mod-r\m byte signifing that the operand of this instruction
+		// is a 32bit displacement. in 64 bit mode, this displacement is actually RIP + 32bit Displacement
+		// So 0xff 0x25 Displacement translets to: jmp qword ptr [rip + displacement]
+		// So we will jump to the address stored at memory location "rip+displacement"
 		JumpInstruction.push_back(0xff);
 		JumpInstruction.push_back(0x25);
-		JumpInstruction.push_back(0x00);
-		JumpInstruction.push_back(0x00);
-		JumpInstruction.push_back(0x00);
-		JumpInstruction.push_back(0x00);
 
-		// JumpInstruction should now contain 0xe9 0x?? 0x?? 0x?? 0x??
-		auto JumpDisplacementBuffer = IntegerToByteBuffer(JumpTo);
-		JumpInstruction.insert(std::end(JumpInstruction), std::begin(JumpDisplacementBuffer), std::end(JumpDisplacementBuffer));
+		// Our displacement is 0. This means that our instruction will be jmp qword ptr [rip]
+		// rip always hold the memory address of the next instruction
+		// So if our next instruction is not an instruction, but our "JumpTo" value instead
+		// We will get our needed absolute jump
+		AppendIntegerToBuffer(JumpInstruction, static_cast<unsigned int>(0) );
+
+		// 
+		AppendIntegerToBuffer(JumpInstruction, JumpTo);
 
 		return JumpInstruction;
 	}
 
-	static ByteBuffer GenerateX86Trampoline(ByteBuffer FunctionCode, DWORD64 JumpLocation) noexcept
+	static ByteBuffer GenerateUnhookCode(const ProcessInformationUtils& ProcUtils,
+		DWORD64 FunctionAddress, DWORD64 FunctionBackupBufferAddress, DWORD FunctionBackupSize )
 	{
-		// A trampoline consists of a few instructions of the start of the original function before it was hooked
-		// In its end is a jump instruction to continuiation of the original function in its original memory location
-		// So if OriginalFunctionStart = X, The trampoline will have code from X to X+15, and the jump will jump to X+16
-		ByteBuffer TrampolineBuffer;
+		// Helper functions here
+		auto WriteProcessMemoryPtr = ProcUtils.GetFunctionAddress("ntdll!memcpy");
+		auto FlushInstructionCachePtr = ProcUtils.GetFunctionAddress("kernelbase!FlushInstructionCache");
+
+		ByteBuffer UnhookCode;
+
+		// mov rcx, FunctionAddress ( rcx = lpBaseAddress ) | 48 ba FunctionAddress
+		UnhookCode.push_back(0x48); UnhookCode.push_back(0xb9); AppendIntegerToBuffer(UnhookCode, FunctionAddress);
+
+		// mov rdx, FunctionBackupBufferAddress ( rdx = lpBuffer ) | 49 b8 FunctionBackupBufferAddress
+		UnhookCode.push_back(0x48); UnhookCode.push_back(0xba); AppendIntegerToBuffer(UnhookCode, FunctionBackupBufferAddress);
+
+		// mov r8, FunctionBackupSize ( r8 = nSize ) | c7 c1 FunctionBackupSize
+		UnhookCode.push_back(0x49); UnhookCode.push_back(0xc7); UnhookCode.push_back(0xc0); AppendIntegerToBuffer(UnhookCode, FunctionBackupSize);
+
+		// mov rdi, WriteProcessMemoryPtr | 48 bf WriteProcessMemoryPtr
+		UnhookCode.push_back(0x48); UnhookCode.push_back(0xbf); AppendIntegerToBuffer(UnhookCode, WriteProcessMemoryPtr);
+
+		// call rdi || ff d7
+		UnhookCode.push_back(0xff); UnhookCode.push_back(0xd7);
+
+
+		// mov rdi, FlushInstructionCachePtr
+		//UnhookCode.push_back(0x48); UnhookCode.push_back(0xbf); AppendIntegerToBuffer(UnhookCode, FlushInstructionCachePtr);
+
+		//// call rdi
+		//UnhookCode.push_back(0xff); UnhookCode.push_back(0xd7);
+
+		auto JmpBuffer = GenerateAbsoluteJump64Code(FunctionAddress);
+		UnhookCode.insert(UnhookCode.end(), std::begin(JmpBuffer), std::end(JmpBuffer));
+		
+		return UnhookCode;
 
 	}
 }

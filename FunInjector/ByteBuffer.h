@@ -12,7 +12,7 @@ namespace FunInjector
 
 	// Create a little endian representation of some Integer value as a byte array
 	template< typename IntegerType >
-	ByteBuffer IntegerToByteBuffer(IntegerType Integer)
+	static ByteBuffer IntegerToByteBuffer(IntegerType Integer)
 	{
 		static_assert(std::is_integral_v< IntegerType >, "Supplied type to IntegerToByteBuffer is not an integral type");
 
@@ -27,6 +27,14 @@ namespace FunInjector
 		}
 
 		return IntegerBuffer;
+	}
+
+	// Takes an integer, turns it into a byte array and appends to supplied buffer
+	template< typename IntegerType >
+	static void AppendIntegerToBuffer(ByteBuffer& Buffer, IntegerType Integer)
+	{
+		auto IntegerBuffer = IntegerToByteBuffer(Integer);
+		Buffer.insert(std::end(Buffer), std::begin(IntegerBuffer), std::end(IntegerBuffer));
 	}
 
 }

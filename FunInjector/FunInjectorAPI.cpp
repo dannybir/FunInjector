@@ -4,8 +4,7 @@
 #include "pch.h"
 #include "FunInjectorAPI.h"
 
-#include "AssemblyCodeGenerator.h"
-#include "ProcessInformationUtils.h"
+#include "FuncHookProcessInjector.h"
 
 namespace FunInjector
 {
@@ -15,18 +14,9 @@ namespace FunInjector
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
 		plog::init(plog::debug, &ColorConsoleLogger);
 
-		DWORD ProcId = 20084;
-		auto ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcId);
-
-		ProcessInformationUtils ProcUtils(ProcessHandle, true);
-		auto AllocationBase = ProcUtils.FindAndAllocateExecuteMemoryInProcess(0x200);
-
-		auto FunctionAddr = ProcUtils.GetFunctionAddress(L"kernelbase!ReplaceFileW");
-
-		auto JumpInstrBuffer =  GenerateNearAbsoluteJump(AllocationBase);
-		ProcUtils.WriteBufferToProcess(JumpInstrBuffer, FunctionAddr, JumpInstrBuffer.size());
-
-		int x = 1;
+		FuncHookProcessInjector injector(1808, "c:/dll.dll", "KERNELBASE!CreateFileW");
+		injector.PrepareForInjection();
+		injector.InjectDll();
 	}
 }
 
