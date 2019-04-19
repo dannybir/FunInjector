@@ -37,4 +37,21 @@ namespace FunInjector
 		Buffer.insert(std::end(Buffer), std::begin(IntegerBuffer), std::end(IntegerBuffer));
 	}
 
+	// Append a buffer to the end of another
+	static void AppendBufferToBuffer(ByteBuffer& Target, const ByteBuffer& Source)
+	{
+		Target.insert(Target.end(), Source.cbegin(), Source.cend());
+	}
+
+	static std::string BufferToString(const ByteBuffer& Buffer)
+	{
+		std::ostringstream StrStream;
+
+		for (const auto& Byte : Buffer)
+		{
+			StrStream << " " << std::hex << Byte << " ";
+		}
+
+		return StrStream.str();
+	}
 }

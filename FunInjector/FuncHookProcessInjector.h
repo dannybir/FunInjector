@@ -24,6 +24,9 @@ namespace FunInjector
 		virtual EOperationStatus PrepareProcInfoUtils() noexcept override;
 
 	private:
+		EOperationStatus CreateInjectionCodeBuffer() noexcept;
+
+	private:
 		// Name of the victim function we would hook to initiate the loading of our dll
 		std::string TargetFunctionName;
 

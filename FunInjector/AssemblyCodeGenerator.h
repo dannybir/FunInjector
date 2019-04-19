@@ -53,12 +53,11 @@ namespace FunInjector
 		return JumpInstruction;
 	}
 
-	static ByteBuffer GenerateUnhookCode(const ProcessInformationUtils& ProcUtils,
+	static ByteBuffer GenerateMemCpyCode(const ProcessInformationUtils& ProcUtils,
 		DWORD64 FunctionAddress, DWORD64 FunctionBackupBufferAddress, DWORD FunctionBackupSize )
 	{
 		// Helper functions here
 		auto WriteProcessMemoryPtr = ProcUtils.GetFunctionAddress("ntdll!memcpy");
-		auto FlushInstructionCachePtr = ProcUtils.GetFunctionAddress("kernelbase!FlushInstructionCache");
 
 		ByteBuffer UnhookCode;
 
@@ -76,18 +75,46 @@ namespace FunInjector
 
 		// call rdi || ff d7
 		UnhookCode.push_back(0xff); UnhookCode.push_back(0xd7);
-
-
-		// mov rdi, FlushInstructionCachePtr
-		//UnhookCode.push_back(0x48); UnhookCode.push_back(0xbf); AppendIntegerToBuffer(UnhookCode, FlushInstructionCachePtr);
-
-		//// call rdi
-		//UnhookCode.push_back(0xff); UnhookCode.push_back(0xd7);
-
-		auto JmpBuffer = GenerateAbsoluteJump64Code(FunctionAddress);
-		UnhookCode.insert(UnhookCode.end(), std::begin(JmpBuffer), std::end(JmpBuffer));
 		
 		return UnhookCode;
 
+	}
+
+	static ByteBuffer GenerateVirtualProtectCode(const ProcessInformationUtils& ProcUtils, DWORD64 TargetAddress, DWORD ProtectSize, DWORD NewProtect)
+	{
+		// BOOL VirtualProtect (
+		// LPVOID lpAddress
+		// SIZE_T dwSize
+		// DWORD flNewProtect
+		// PDWORD lpflOldProtect
+		auto VirtualProtectPtr = ProcUtils.GetFunctionAddress("kernelbase!VirtualProtect");
+
+		ByteBuffer VProtectCode;
+		// Make room for old protect
+		// add rsp,4
+		VProtectCode.push_back(0x48); VProtectCode.push_back(0x83); VProtectCode.push_back(0xc4); VProtectCode.push_back(0x04);
+
+		// mov rcx, lpAddress
+		VProtectCode.push_back(0x48); VProtectCode.push_back(0xb9); AppendIntegerToBuffer(VProtectCode, TargetAddress);
+
+		// mov rdx, dwSize
+		VProtectCode.push_back(0x48); VProtectCode.push_back(0xc7); VProtectCode.push_back(0xc2); AppendIntegerToBuffer(VProtectCode, ProtectSize);
+
+		// mov r8, flNewProtect
+		VProtectCode.push_back(0x49); VProtectCode.push_back(0xc7); VProtectCode.push_back(0xc0); AppendIntegerToBuffer(VProtectCode, NewProtect);
+
+		// mov r9, rsp
+		VProtectCode.push_back(0x49); VProtectCode.push_back(0x89); VProtectCode.push_back(0xe1);
+
+		// mov rdi, WriteProcessMemoryPtr | 48 bf WriteProcessMemoryPtr
+		VProtectCode.push_back(0x48); VProtectCode.push_back(0xbf); AppendIntegerToBuffer(VProtectCode, VirtualProtectPtr);
+
+		// call rdi || ff d7
+		VProtectCode.push_back(0xff); VProtectCode.push_back(0xd7);
+
+		// sub rsp,4
+		VProtectCode.push_back(0x48); VProtectCode.push_back(0x83); VProtectCode.push_back(0xec); VProtectCode.push_back(0x04);
+
+		return VProtectCode;
 	}
 }

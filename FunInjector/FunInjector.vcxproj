@@ -156,6 +156,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AssemblyCode.h" />
     <ClInclude Include="AssemblyCodeGenerator.h" />
     <ClInclude Include="ByteBuffer.h" />
     <ClInclude Include="FuncHookProcessInjector.h" />
@@ -166,6 +167,7 @@
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AssemblyCode.cpp" />
     <ClCompile Include="FuncHookProcessInjector.cpp" />
     <ClCompile Include="FunInjectorAPI.cpp" />
     <ClCompile Include="pch.cpp">

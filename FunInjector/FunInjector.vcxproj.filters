@@ -47,6 +47,9 @@
     <ClInclude Include="Utils.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="AssemblyCode.h">
+      <Filter>API</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -60,6 +63,9 @@
     </ClCompile>
     <ClCompile Include="FuncHookProcessInjector.cpp">
       <Filter>Injectors</Filter>
+    </ClCompile>
+    <ClCompile Include="AssemblyCode.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
