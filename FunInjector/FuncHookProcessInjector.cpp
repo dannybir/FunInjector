@@ -8,6 +8,7 @@ namespace FunInjector
 	FuncHookProcessInjector::FuncHookProcessInjector( const DWORD ProcessId, const std::string& DllName, const std::string& FunctionName )
 		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(FunctionName)
 	{
+		JmpInstructionDefaultSize = static_cast<SIZE_T>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP);
 	}
 
 
@@ -17,56 +18,27 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::InjectDll() noexcept
 	{
-		// Steps for injection are:
-		// Write Injection Code
-		// Write DllPath
-		// 
-		
-		// First we write the path to the dll at the beginning of the payload address
-		ByteBuffer DllPath( DllToInject.begin(), DllToInject.end() );
-		DllPath.push_back('\0');
-		if (ProcessUtils.WriteBufferToProcess(DllPath, PayloadAddress, DllPath.size()) == EOperationStatus::FAIL)
+		// First write the payload
+		if (ProcessUtils.WriteBufferToProcess(PayloadBuffer, PayloadAddress, PayloadBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
 
-		// Need to append the payload address the size of the path buffer
-		PayloadAddress += static_cast<DWORD64>( DllPath.size() );
-
-		// Now write the original function bytes that we overwrote previously
-		// We write them back so that we overwrite the original function with its original code once injection ends
-		if (ProcessUtils.WriteBufferToProcess(TargetFunctionStartBackup, PayloadAddress, TargetFunctionStartBackup.size()) == EOperationStatus::FAIL)
+		// Second, write the hook
+		if (ProcessUtils.WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
-		PayloadAddress += static_cast<DWORD64>(TargetFunctionStartBackup.size());
-
-		auto CodeStart = PayloadAddress;
-
-		auto VProtectCode = GenerateVirtualProtectCode(ProcessUtils, TargetFunctionAddress, TargetFunctionStartBackup.size(), PAGE_EXECUTE_WRITECOPY);
-		if (ProcessUtils.WriteBufferToProcess(VProtectCode, PayloadAddress, VProtectCode.size()) == EOperationStatus::FAIL)
-		{
-			return EOperationStatus::FAIL;
-		}
-		PayloadAddress += static_cast<DWORD64>(VProtectCode.size());
-
-		// After we write the hook, we need to call FlushInstructionCache
-		//auto UnhookCode = GenerateUnhookCode(ProcessUtils, TargetFunctionAddress, PayloadAddress, TargetFunctionStartBackup.size());
-		//if (ProcessUtils.WriteBufferToProcess(UnhookCode, PayloadAddress, UnhookCode.size()) == EOperationStatus::FAIL)
-		//{
-		//	return EOperationStatus::FAIL;
-		//}
-
-
-
-		// write hook
-		JmpHookBuffer = GenerateRelativeJumpCode(TargetFunctionAddress, CodeStart);
-		ProcessUtils.WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size());
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareForInjection() noexcept
 	{
-		// 
+		// 1. Prepare all buffers ( Data + Code ) to know their size
+		// 2. Create allocated memory in target process with Data+Code+Constant size
+		// 3. Create a jump hook buffer which will jump to allocated memory + data
+		// 4. Update code operands with memory locations of the data
+
+
 		if (PrepareProcInfoUtils() == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
@@ -78,25 +50,40 @@ namespace FunInjector
 			return EOperationStatus::FAIL;
 		}
 
+		// Generate assembly code which will be ultimately injected into the target process for execution
+		VirtualProtectCode = GenerateVirtualProtectCode64();
+		RestoreFunctionMemoryCode = GenerateMemCpyCode64();
+
+		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
+		TargetFunctionStartBackup = ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, JmpInstructionDefaultSize);
+
 		// Find some free memory and allocate big enough memory
-		// TODO: Hardcoded for now
-		PayloadAddress = ProcessUtils.FindAndAllocateExecuteMemoryInProcess(0x100);
-		if (PayloadAddress)
+		auto DataSize = DllToInject.size() + 1 + TargetFunctionStartBackup.size();
+		auto CodeSize = VirtualProtectCode.GetCodeSize() +
+						RestoreFunctionMemoryCode.GetCodeSize() +
+						JmpInstructionDefaultSize;
+
+		SIZE_T PayloadSize = DataSize + CodeSize;
+		PayloadAddress = ProcessUtils.FindAndAllocateExecuteMemoryInProcess(PayloadSize + 0x50);
+		if (PayloadAddress == 0)
 		{
 			return EOperationStatus::FAIL;
 		}
 
-		//
-		JmpHookBuffer = GenerateRelativeJumpCode(TargetFunctionAddress, PayloadAddress);
-		TargetFunctionStartBackup = ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, JmpHookBuffer.size());
+		// Will insert needed data information into the payload buffer
+		PrepareDataPayload();
 
-		// Generate a buffer with injection payload assembly code
-		// We need to know how the big this buffer is before we can allocate remote memory for it
+		// We would like our hook to jump into the beginning of the code section
+		JmpHookBuffer = JumpInstructions::GenerateRelativeJumpCode(TargetFunctionAddress, PayloadAddress + DataSize);
 
+		// Get the payload buffer populated with the code buffers
+		PrepareAssemblyCodePayload();
 
+		// We would like our return jump to jump back after executing all the code
+		auto ReturnJumpBuffer = JumpInstructions::GenerateRelativeJumpCode(PayloadAddress + PayloadSize - JmpInstructionDefaultSize, TargetFunctionAddress);
+		AppendBufferToBuffer(PayloadBuffer, ReturnJumpBuffer);
 
-
-		
+		// At this point, our PayloadBuffer should be ready with everything needed
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareProcInfoUtils() noexcept
@@ -111,20 +98,43 @@ namespace FunInjector
 		ProcessUtils = ProcessInformationUtils(ProcessHandle, false);
 		return ProcessUtils.EnumerateProcessModules();
 	}
-	EOperationStatus FuncHookProcessInjector::CreateInjectionCodeBuffer() noexcept
+
+	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
 	{
-		//
-		// 1. VirtualProtect the TargetFunctionAddress to make it writeable
-		// 2. Memcpy from original function backup buffer to the target function address, effectivily removing the hook
-		// 3. VirtualProtect to restore the previous protection
-		// 4. FlushInstructionCache because we updated an instruction that may have been cached
-		// 5. Call LoadLibrary with the dll path 
-		// 6. Jmp to target function address
+		VirtualProtectCode.ModifyOperandsInOrder(
+			{
+				{TargetFunctionAddress},
+				{static_cast<DWORD>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP)},
+				{static_cast<DWORD>(PAGE_EXECUTE_WRITECOPY)},
+				{ProcessUtils.GetFunctionAddress("kernelbase!VirtualProtect")}
 
-		// VirtualProtect( TargetFunctionAddress, SizeOfJmpHook, PAGE_EXECUTE_WRITECOPY, ... )
-		auto VProtectCode = GenerateVirtualProtectCode(ProcessUtils, TargetFunctionAddress, TargetFunctionStartBackup.size(), PAGE_EXECUTE_WRITECOPY);
+			}
+		);
+		AppendBufferToBuffer(PayloadBuffer, VirtualProtectCode.GetCodeBuffer());
 
-		auto MemCpyCode = GenerateMemCpyCode(ProcessUtils, TargetFunctionAddress, 0x50, TargetFunctionStartBackup.size());
+		RestoreFunctionMemoryCode.ModifyOperandsInOrder(
+			{
+				{TargetFunctionAddress},
+				{PayloadAddress + DllToInject.size() + 1},
+				{static_cast<DWORD>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP)},
+				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
+
+			}
+		);
+		AppendBufferToBuffer(PayloadBuffer, RestoreFunctionMemoryCode.GetCodeBuffer());
+		
+		return EOperationStatus::SUCCESS;
+	}
+
+	EOperationStatus FuncHookProcessInjector::PrepareDataPayload() noexcept
+	{
+		// First we write the path to the dll at the beginning of the payload address
+		ByteBuffer DllPathBuffer(DllToInject.begin(), DllToInject.end());
+		DllPathBuffer.push_back('\0');
+		AppendBufferToBuffer(PayloadBuffer, DllPathBuffer);
+
+		// Now the first bytes of the function we hooked
+		AppendBufferToBuffer(PayloadBuffer, TargetFunctionStartBackup);
 
 		return EOperationStatus::SUCCESS;
 	}

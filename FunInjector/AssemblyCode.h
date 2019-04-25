@@ -56,8 +56,9 @@ namespace FunInjector
 
 		int GetInstructionSize() const noexcept;
 		ByteBuffer GetInstructionBuffer() const noexcept;
-
 		std::string FormatIntoString() const noexcept;
+
+		inline bool DoesContainsOperands() const { return Operands.size() == 0 ? false : true; }
 
 	private:
 		// Op codes are made of a byte or a list of bytes that encode some operation
@@ -87,13 +88,7 @@ namespace FunInjector
 			return CodeBuffer;
 		}
 
-		inline std::string FormatIntoString()
-		{
-			for (auto instr : CodeInstructions)
-			{
-
-			}
-		}
+		std::string FormatIntoString() const;
 
 	private:
 		void GenerateCodeBuffer() noexcept;

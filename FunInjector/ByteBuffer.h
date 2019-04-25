@@ -10,6 +10,13 @@ namespace FunInjector
 	// All memory read or write function should return a byte buffer, which is just a std::vector of byte sized data type
 	using ByteBuffer = std::vector< Byte >;
 
+	// Represents a buffer which exists/will exist at a remote process starting from the address 'RemoteAddress' to 'RemoteAddress + Buffer.size'
+	struct RemoteByteBuffer
+	{
+		ByteBuffer Buffer;
+		DWORD64 RemoteAddress = 0;
+	};
+
 	// Create a little endian representation of some Integer value as a byte array
 	template< typename IntegerType >
 	static ByteBuffer IntegerToByteBuffer(IntegerType Integer)
@@ -43,13 +50,18 @@ namespace FunInjector
 		Target.insert(Target.end(), Source.cbegin(), Source.cend());
 	}
 
+	static void AppendRemoteBufferToBuffer(ByteBuffer& Target, const RemoteByteBuffer& Source)
+	{
+		Target.insert(Target.end(), Source.Buffer.cbegin(), Source.Buffer.cend());
+	}
+
 	static std::string BufferToString(const ByteBuffer& Buffer)
 	{
 		std::ostringstream StrStream;
 
 		for (const auto& Byte : Buffer)
 		{
-			StrStream << " " << std::hex << Byte << " ";
+			StrStream << " " << std::hex << static_cast<int>(Byte) << " ";
 		}
 
 		return StrStream.str();

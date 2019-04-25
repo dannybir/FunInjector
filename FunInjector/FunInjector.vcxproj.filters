@@ -48,7 +48,10 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="AssemblyCode.h">
-      <Filter>API</Filter>
+      <Filter>AssemblyCode</Filter>
+    </ClInclude>
+    <ClInclude Include="AssemblyCodeManager.h">
+      <Filter>AssemblyCode</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -65,7 +68,10 @@
       <Filter>Injectors</Filter>
     </ClCompile>
     <ClCompile Include="AssemblyCode.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>AssemblyCode</Filter>
+    </ClCompile>
+    <ClCompile Include="AssemblyCodeManager.cpp">
+      <Filter>AssemblyCode</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

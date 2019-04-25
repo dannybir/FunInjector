@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IProcessInjector.h"
+#include "AssemblyCode.h"
 
 namespace FunInjector
 {
@@ -24,7 +25,8 @@ namespace FunInjector
 		virtual EOperationStatus PrepareProcInfoUtils() noexcept override;
 
 	private:
-		EOperationStatus CreateInjectionCodeBuffer() noexcept;
+		EOperationStatus PrepareAssemblyCodePayload() noexcept;
+		EOperationStatus PrepareDataPayload() noexcept;
 
 	private:
 		// Name of the victim function we would hook to initiate the loading of our dll
@@ -36,15 +38,24 @@ namespace FunInjector
 		// Address in the remote process of the start of the payload buffer code
 		DWORD64		PayloadAddress;
 
-		// Assembly code which will be executed on the remote process to load our DLL
-		ByteBuffer	PayloadBuffer;
-
 		// Buffer for the jump instruction which will be used to hook the target function
 		ByteBuffer	JmpHookBuffer;
 
 		// This buffer holds the instructions that are overwritten by the jmp
 		// We need them so that we can restore the function to normal once injection ends
 		ByteBuffer	TargetFunctionStartBackup;
+
+		// This buffer will contain everything needed ( data + assembly code ) to be injected
+		// into the remote process, will be written to PayloadAddress address in the remote process
+		ByteBuffer	PayloadBuffer;
+
+		//
+		SIZE_T		JmpInstructionDefaultSize;
+
+		//
+		AssemblyCode VirtualProtectCode;
+		AssemblyCode RestoreFunctionMemoryCode;
+		AssemblyCode LoadDllCode;
 
 	};
 

@@ -34,6 +34,11 @@ namespace FunInjector
 
 	void AssemblyInstruction::ModifyOperands(const std::initializer_list<std::variant<DWORD64, DWORD, WORD>>& InstOperands) noexcept
 	{
+		if (Operands.size() == 0)
+		{
+			return;
+		}
+
 		auto OperandIndex = 0;
 		for (const auto& Operand : InstOperands)
 		{
@@ -88,12 +93,14 @@ namespace FunInjector
 			StrStream << ByteArrString << "(" << std::hex << Value << ")";
 		};
 
-		StrStream << BufferToString(OpCodeBuffer);
-		
+		StrStream << "[" << BufferToString(OpCodeBuffer) << "]";
+		StrStream << "[";
 		for (auto& Operand : Operands)
 		{
 			std::visit(OperandVisitor, Operand);
+			StrStream << ", ";
 		}
+		StrStream << "]";
 
 		return StrStream.str();
 	}
@@ -116,22 +123,45 @@ namespace FunInjector
 
 	void AssemblyCode::ModifyOperandsInOrder(const std::initializer_list< std::initializer_list<Operand>>& Operands) noexcept
 	{
-		if (Operands.size() != CodeInstructions.size())
-		{
-			LOG_ERROR << L"Failed to modify operand by order because input amount of instructions does not equal to actual amount";
-			return;
-		}
-
 		auto IterInstructions = CodeInstructions.begin();
 		for (const auto& InstructionOperands : Operands )
 		{
+			while (!IterInstructions->DoesContainsOperands())
+			{
+				IterInstructions++;
+			}
+
+			if (IterInstructions == CodeInstructions.end())
+			{
+				break;
+			}
+
 			IterInstructions->ModifyOperands(InstructionOperands);
 			IterInstructions++;
 		}
+
+		GenerateCodeBuffer();
+	}
+
+	std::string AssemblyCode::FormatIntoString() const
+	{
+		std::ostringstream StringStream;
+
+		StringStream << std::endl;
+		int InstructionNumber = 0;
+		for (const auto& Instruction : CodeInstructions)
+		{
+			StringStream << InstructionNumber << ": " << Instruction.FormatIntoString() << std::endl;
+			InstructionNumber++;
+		}
+
+		return StringStream.str();
 	}
 
 	void AssemblyCode::GenerateCodeBuffer() noexcept
 	{
+		CodeBuffer.clear();
+
 		for (const auto& Instruction : CodeInstructions)
 		{
 			const auto& InstrBuffer = Instruction.GetInstructionBuffer();

@@ -2,119 +2,121 @@
 
 #include "pch.h"
 #include "ProcessInformationUtils.h"
+#include "AssemblyCode.h"
 
 namespace FunInjector
 {
-	// This instruction can be used in x64 and x86
-	// Be aware that this allows 2GB maximum relative displacement due to limitation of a signed 4 byte displacement
-	// The long type displacement is sign extended ( keeps sign after extending ) to 64bit in 64bit mode
-	static ByteBuffer GenerateRelativeJumpCode( DWORD64 JumpFrom, DWORD64 JumpTo ) noexcept
+	namespace JumpInstructions
 	{
-		ByteBuffer JumpInstruction;
+		enum class JumpInstructionSizes : SIZE_T
+		{
+			RELATIVE_JUMP = 5,
+			ABSOLUTE_JUMP_64 = 14,
+		};
 
-		// e9 - jmp opcode
-		JumpInstruction.push_back(0xe9);
+		// This instruction can be used in x64 and x86
+		// Be aware that this allows 2GB maximum relative displacement due to limitation of a signed 4 byte displacement
+		// The long type displacement is sign extended ( keeps sign after extending ) to 64bit in 64bit mode
+		static ByteBuffer GenerateRelativeJumpCode(DWORD64 JumpFrom, DWORD64 JumpTo) noexcept
+		{
+			ByteBuffer JumpInstruction;
 
-		// e9 requires a signed displacement value as an operand
-		// We need to first calculate the displacement in terms of RIP = RIP + 32
+			// e9 - jmp opcode
+			JumpInstruction.push_back(0xe9);
 
-		// The instruction is 5 bytes in total, 4 bytes for the displacement and 1 for the opcode
-		int InstructionSize = 1 + sizeof(long);
-		auto JumpStart = static_cast<long>(JumpFrom + InstructionSize);
-		auto JumpDisplacement = static_cast<long>(JumpTo) - JumpStart;
+			// e9 requires a signed displacement value as an operand
+			// We need to first calculate the displacement in terms of RIP = RIP + 32
 
-		// Turn the displacement into a byte array and append to the instruction byte array
-		AppendIntegerToBuffer(JumpInstruction, JumpDisplacement);
+			// The instruction is 5 bytes in total, 4 bytes for the displacement and 1 for the opcode
+			int InstructionSize = 1 + sizeof(long);
+			auto JumpStart = static_cast<long>(JumpFrom + InstructionSize);
+			auto JumpDisplacement = static_cast<long>(JumpTo) - JumpStart;
+
+			// Turn the displacement into a byte array and append to the instruction byte array
+			AppendIntegerToBuffer(JumpInstruction, JumpDisplacement);
+
+			return JumpInstruction;
+		}
+
+		// This instruction can be used in 32bit but in this case we'll only use it in 64bit
+		static ByteBuffer GenerateAbsoluteJump64Code(DWORD64 JumpTo) noexcept
+		{
+			ByteBuffer JumpInstruction;
+
+			// 0xff 0x25 is a near absolute jump, 0x25 is a mod-r\m byte signifing that the operand of this instruction
+			// is a 32bit displacement. in 64 bit mode, this displacement is actually RIP + 32bit Displacement
+			// So 0xff 0x25 Displacement translets to: jmp qword ptr [rip + displacement]
+			// So we will jump to the address stored at memory location "rip+displacement"
+			JumpInstruction.push_back(0xff);
+			JumpInstruction.push_back(0x25);
+
+			// Our displacement is 0. This means that our instruction will be jmp qword ptr [rip]
+			// rip always hold the memory address of the next instruction
+			// So if our next instruction is not an instruction, but our "JumpTo" value instead
+			// We will get our needed absolute jump
+			AppendIntegerToBuffer(JumpInstruction, static_cast<unsigned int>(0));
+
+			// 
+			AppendIntegerToBuffer(JumpInstruction, JumpTo);
+
+			return JumpInstruction;
+		}
+	}
+	
+
+	static AssemblyCode GenerateMemCpyCode64()
+	{
+		AssemblyCode MemCpyCode(
+			{
+				// mov rcx, Operand: Target Address
+				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
+
+				// mov rdx, Operand: Source Address
+				{ 0x48_b,0xba_b, DWORD64_OPERAND},
+
+				// mov r8, Operand: Size to copy
+				{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
+
+				// mov rdi, Operand: Pointer to function
+				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
+
+				// call rdi
+				{ 0xff_b, 0xd7_b }
+			});
 		
-		return JumpInstruction;
+		return MemCpyCode;
 	}
 
-	// This instruction can be used in 32bit but in this case we'll only use it in 64bit
-	static ByteBuffer GenerateAbsoluteJump64Code(DWORD64 JumpTo) noexcept
+	static AssemblyCode GenerateVirtualProtectCode64()
 	{
-		ByteBuffer JumpInstruction;
+		AssemblyCode VirtualProtectCode(
+			{
+				// add rsp,4
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x04_b },
 
-		// 0xff 0x25 is a near absolute jump, 0x25 is a mod-r\m byte signifing that the operand of this instruction
-		// is a 32bit displacement. in 64 bit mode, this displacement is actually RIP + 32bit Displacement
-		// So 0xff 0x25 Displacement translets to: jmp qword ptr [rip + displacement]
-		// So we will jump to the address stored at memory location "rip+displacement"
-		JumpInstruction.push_back(0xff);
-		JumpInstruction.push_back(0x25);
+				// mov rcx, Operand = Target Protect Address
+				{ 0x48_b, 0xb9_b, DWORD64_OPERAND},
 
-		// Our displacement is 0. This means that our instruction will be jmp qword ptr [rip]
-		// rip always hold the memory address of the next instruction
-		// So if our next instruction is not an instruction, but our "JumpTo" value instead
-		// We will get our needed absolute jump
-		AppendIntegerToBuffer(JumpInstruction, static_cast<unsigned int>(0) );
+				// mov rdx, Operand = Size of Memory to protect
+				{ 0x48_b, 0xc7_b, 0xc2_b, DWORD_OPERAND},
 
-		// 
-		AppendIntegerToBuffer(JumpInstruction, JumpTo);
+				// mov r8, Operand = New Protect Value
+				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
 
-		return JumpInstruction;
-	}
+				// mov r9, rsp
+				{ 0x49_b, 0x89_b, 0xe1_b},
 
-	static ByteBuffer GenerateMemCpyCode(const ProcessInformationUtils& ProcUtils,
-		DWORD64 FunctionAddress, DWORD64 FunctionBackupBufferAddress, DWORD FunctionBackupSize )
-	{
-		// Helper functions here
-		auto WriteProcessMemoryPtr = ProcUtils.GetFunctionAddress("ntdll!memcpy");
+				// mov rdi, Operand = Pointer to VirtualProtect
+				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
 
-		ByteBuffer UnhookCode;
+				// call rdi
+				{ 0xff_b, 0xd7_b},
 
-		// mov rcx, FunctionAddress ( rcx = lpBaseAddress ) | 48 ba FunctionAddress
-		UnhookCode.push_back(0x48); UnhookCode.push_back(0xb9); AppendIntegerToBuffer(UnhookCode, FunctionAddress);
+				// sub rsp,4
+				{ 0x48_b, 0x83_b, 0xec_b, 0x04_b}
+			}
+		);
 
-		// mov rdx, FunctionBackupBufferAddress ( rdx = lpBuffer ) | 49 b8 FunctionBackupBufferAddress
-		UnhookCode.push_back(0x48); UnhookCode.push_back(0xba); AppendIntegerToBuffer(UnhookCode, FunctionBackupBufferAddress);
-
-		// mov r8, FunctionBackupSize ( r8 = nSize ) | c7 c1 FunctionBackupSize
-		UnhookCode.push_back(0x49); UnhookCode.push_back(0xc7); UnhookCode.push_back(0xc0); AppendIntegerToBuffer(UnhookCode, FunctionBackupSize);
-
-		// mov rdi, WriteProcessMemoryPtr | 48 bf WriteProcessMemoryPtr
-		UnhookCode.push_back(0x48); UnhookCode.push_back(0xbf); AppendIntegerToBuffer(UnhookCode, WriteProcessMemoryPtr);
-
-		// call rdi || ff d7
-		UnhookCode.push_back(0xff); UnhookCode.push_back(0xd7);
-		
-		return UnhookCode;
-
-	}
-
-	static ByteBuffer GenerateVirtualProtectCode(const ProcessInformationUtils& ProcUtils, DWORD64 TargetAddress, DWORD ProtectSize, DWORD NewProtect)
-	{
-		// BOOL VirtualProtect (
-		// LPVOID lpAddress
-		// SIZE_T dwSize
-		// DWORD flNewProtect
-		// PDWORD lpflOldProtect
-		auto VirtualProtectPtr = ProcUtils.GetFunctionAddress("kernelbase!VirtualProtect");
-
-		ByteBuffer VProtectCode;
-		// Make room for old protect
-		// add rsp,4
-		VProtectCode.push_back(0x48); VProtectCode.push_back(0x83); VProtectCode.push_back(0xc4); VProtectCode.push_back(0x04);
-
-		// mov rcx, lpAddress
-		VProtectCode.push_back(0x48); VProtectCode.push_back(0xb9); AppendIntegerToBuffer(VProtectCode, TargetAddress);
-
-		// mov rdx, dwSize
-		VProtectCode.push_back(0x48); VProtectCode.push_back(0xc7); VProtectCode.push_back(0xc2); AppendIntegerToBuffer(VProtectCode, ProtectSize);
-
-		// mov r8, flNewProtect
-		VProtectCode.push_back(0x49); VProtectCode.push_back(0xc7); VProtectCode.push_back(0xc0); AppendIntegerToBuffer(VProtectCode, NewProtect);
-
-		// mov r9, rsp
-		VProtectCode.push_back(0x49); VProtectCode.push_back(0x89); VProtectCode.push_back(0xe1);
-
-		// mov rdi, WriteProcessMemoryPtr | 48 bf WriteProcessMemoryPtr
-		VProtectCode.push_back(0x48); VProtectCode.push_back(0xbf); AppendIntegerToBuffer(VProtectCode, VirtualProtectPtr);
-
-		// call rdi || ff d7
-		VProtectCode.push_back(0xff); VProtectCode.push_back(0xd7);
-
-		// sub rsp,4
-		VProtectCode.push_back(0x48); VProtectCode.push_back(0x83); VProtectCode.push_back(0xec); VProtectCode.push_back(0x04);
-
-		return VProtectCode;
+		return VirtualProtectCode;
 	}
 }
