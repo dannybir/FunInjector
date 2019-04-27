@@ -8,9 +8,6 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{2ec2746b-e996-4ef8-a664-eaade6a271af}</UniqueIdentifier>
     </Filter>
-    <Filter Include="RemoteHook">
-      <UniqueIdentifier>{224dc7ad-486f-4082-b5ab-e1804f15a5a8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="API">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
@@ -20,6 +17,12 @@
     </Filter>
     <Filter Include="Injectors">
       <UniqueIdentifier>{81e7be5e-93a5-428d-b76e-c8fdb3842308}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PayloadData">
+      <UniqueIdentifier>{224dc7ad-486f-4082-b5ab-e1804f15a5a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AssemblyCode\AssemblyCodeGenerator">
+      <UniqueIdentifier>{0bf0f84b-77b0-42d7-8ea8-9c95860655d5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -31,9 +34,6 @@
     </ClInclude>
     <ClInclude Include="FunInjectorAPI.h">
       <Filter>API</Filter>
-    </ClInclude>
-    <ClInclude Include="AssemblyCodeGenerator.h">
-      <Filter>AssemblyCode</Filter>
     </ClInclude>
     <ClInclude Include="ByteBuffer.h">
       <Filter>Utils</Filter>
@@ -52,6 +52,18 @@
     </ClInclude>
     <ClInclude Include="AssemblyCodeManager.h">
       <Filter>AssemblyCode</Filter>
+    </ClInclude>
+    <ClInclude Include="AssemblyCodeGenerator32.h">
+      <Filter>AssemblyCode\AssemblyCodeGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="AssemblyCodeGenerator64.h">
+      <Filter>AssemblyCode\AssemblyCodeGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="IAssemblyCodeGenerator.h">
+      <Filter>AssemblyCode\AssemblyCodeGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="PayloadDataHolder.h">
+      <Filter>PayloadData</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -72,6 +84,9 @@
     </ClCompile>
     <ClCompile Include="AssemblyCodeManager.cpp">
       <Filter>AssemblyCode</Filter>
+    </ClCompile>
+    <ClCompile Include="PayloadDataHolder.cpp">
+      <Filter>PayloadData</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -1,9 +1,6 @@
 #pragma once
 
 #include "ByteBuffer.h"
-#include <tuple>
-#include <array>
-#include <variant>
 
 /*
 	AssemblyCode represents a list of instructions which perform some operation
@@ -89,6 +86,25 @@ namespace FunInjector
 		}
 
 		std::string FormatIntoString() const;
+
+
+		// TODO: Should probably go into some utils file
+		static long CalculateRelativeJumpDisplacement(DWORD64 JumpFrom, DWORD64 JumpTo)
+		{
+			// A relative jump is of the form RIP = RIP + 32Bit Displacement
+			// The displacement is a signed integer, which is sign extented to 64bit in 64bit mode
+			// So its calculation is the following:
+			// Displacement = TargetAddress - RIP, where RIP = JumpFrom + Jump instruction size
+			int InstructionSize = 1 + sizeof(long);
+			auto JumpStart = static_cast<long>(JumpFrom + InstructionSize);
+			return static_cast<long>(JumpTo) - JumpStart;
+		}
+
+		
+		static AssemblyCode PrepareRelativeJump(DWORD64 JumpFrom, DWORD64 JumpTo)
+		{
+			return { {0xe9_b, static_cast<DWORD>(CalculateRelativeJumpDisplacement(JumpFrom, JumpTo)) } };
+		}
 
 	private:
 		void GenerateCodeBuffer() noexcept;

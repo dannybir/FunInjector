@@ -157,12 +157,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AssemblyCode.h" />
-    <ClInclude Include="AssemblyCodeGenerator.h" />
+    <ClInclude Include="AssemblyCodeGenerator32.h" />
+    <ClInclude Include="AssemblyCodeGenerator64.h" />
     <ClInclude Include="AssemblyCodeManager.h" />
     <ClInclude Include="ByteBuffer.h" />
     <ClInclude Include="FuncHookProcessInjector.h" />
     <ClInclude Include="FunInjectorAPI.h" />
+    <ClInclude Include="IAssemblyCodeGenerator.h" />
     <ClInclude Include="IProcessInjector.h" />
+    <ClInclude Include="PayloadDataHolder.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ProcessInformationUtils.h" />
     <ClInclude Include="Utils.h" />
@@ -172,6 +175,7 @@
     <ClCompile Include="AssemblyCodeManager.cpp" />
     <ClCompile Include="FuncHookProcessInjector.cpp" />
     <ClCompile Include="FunInjectorAPI.cpp" />
+    <ClCompile Include="PayloadDataHolder.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

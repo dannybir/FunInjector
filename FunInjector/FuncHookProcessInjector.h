@@ -1,7 +1,8 @@
 #pragma once
 
 #include "IProcessInjector.h"
-#include "AssemblyCode.h"
+#include "AssemblyCodeManager.h"
+#include "PayloadDataHolder.h"
 
 namespace FunInjector
 {
@@ -38,24 +39,24 @@ namespace FunInjector
 		// Address in the remote process of the start of the payload buffer code
 		DWORD64		PayloadAddress;
 
+		//
+		SIZE_T		TargetFunctionOverwriteSize;
+
 		// Buffer for the jump instruction which will be used to hook the target function
 		ByteBuffer	JmpHookBuffer;
-
-		// This buffer holds the instructions that are overwritten by the jmp
-		// We need them so that we can restore the function to normal once injection ends
-		ByteBuffer	TargetFunctionStartBackup;
 
 		// This buffer will contain everything needed ( data + assembly code ) to be injected
 		// into the remote process, will be written to PayloadAddress address in the remote process
 		ByteBuffer	PayloadBuffer;
 
 		//
-		SIZE_T		JmpInstructionDefaultSize;
+		PayloadDataHolder PayloadData;
 
 		//
-		AssemblyCode VirtualProtectCode;
-		AssemblyCode RestoreFunctionMemoryCode;
-		AssemblyCode LoadDllCode;
+		std::vector< ECodeType > PayloadCode;
+
+		//
+		AssemblyCodeManager CodeManager;
 
 	};
 

@@ -1,14 +1,12 @@
 
 #include "pch.h"
 #include "FuncHookProcessInjector.h"
-#include "AssemblyCodeGenerator.h"
 
 namespace FunInjector
 {
 	FuncHookProcessInjector::FuncHookProcessInjector( const DWORD ProcessId, const std::string& DllName, const std::string& FunctionName )
 		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(FunctionName)
 	{
-		JmpInstructionDefaultSize = static_cast<SIZE_T>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP);
 	}
 
 
@@ -33,35 +31,39 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareForInjection() noexcept
 	{
-		// 1. Prepare all buffers ( Data + Code ) to know their size
-		// 2. Create allocated memory in target process with Data+Code+Constant size
-		// 3. Create a jump hook buffer which will jump to allocated memory + data
-		// 4. Update code operands with memory locations of the data
-
-
 		if (PrepareProcInfoUtils() == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
 
+		// Prepare the code manager, initiate it using the target process bitness so it could create correct assembly
+		CodeManager = AssemblyCodeManager(ECodeBitnessMode::X64);
+
+		// Generate assembly code which will be ultimately injected into the target process for execution
+		
+
+		/*
+			Set up the jump instruction buffer which will jump to our payload code
+		*/
 		TargetFunctionAddress = ProcessUtils.GetFunctionAddress(TargetFunctionName);
 		if (TargetFunctionAddress == 0)
 		{
 			return EOperationStatus::FAIL;
 		}
 
-		// Generate assembly code which will be ultimately injected into the target process for execution
-		VirtualProtectCode = GenerateVirtualProtectCode64();
-		RestoreFunctionMemoryCode = GenerateMemCpyCode64();
 
-		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
-		TargetFunctionStartBackup = ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, JmpInstructionDefaultSize);
+		// Will insert needed data information into the payload buffer
+		PrepareDataPayload();
+		auto DataSize = PayloadData.GetTotalDataSize();
+
+		// Set up the jmp to the payload code
+		auto JumpCode = AssemblyCode::PrepareRelativeJump(TargetFunctionAddress, PayloadAddress + DataSize);
+		TargetFunctionOverwriteSize = JumpCode.GetCodeSize();
+		JmpHookBuffer = JumpCode.GetCodeBuffer();
 
 		// Find some free memory and allocate big enough memory
-		auto DataSize = DllToInject.size() + 1 + TargetFunctionStartBackup.size();
-		auto CodeSize = VirtualProtectCode.GetCodeSize() +
-						RestoreFunctionMemoryCode.GetCodeSize() +
-						JmpInstructionDefaultSize;
+		
+		auto CodeSize = CodeManager.GetSizeByTypeList(PayloadCode);
 
 		SIZE_T PayloadSize = DataSize + CodeSize;
 		PayloadAddress = ProcessUtils.FindAndAllocateExecuteMemoryInProcess(PayloadSize + 0x50);
@@ -70,20 +72,8 @@ namespace FunInjector
 			return EOperationStatus::FAIL;
 		}
 
-		// Will insert needed data information into the payload buffer
-		PrepareDataPayload();
-
-		// We would like our hook to jump into the beginning of the code section
-		JmpHookBuffer = JumpInstructions::GenerateRelativeJumpCode(TargetFunctionAddress, PayloadAddress + DataSize);
-
-		// Get the payload buffer populated with the code buffers
+		// Everything is now ready to prepare the code payload
 		PrepareAssemblyCodePayload();
-
-		// We would like our return jump to jump back after executing all the code
-		auto ReturnJumpBuffer = JumpInstructions::GenerateRelativeJumpCode(PayloadAddress + PayloadSize - JmpInstructionDefaultSize, TargetFunctionAddress);
-		AppendBufferToBuffer(PayloadBuffer, ReturnJumpBuffer);
-
-		// At this point, our PayloadBuffer should be ready with everything needed
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareProcInfoUtils() noexcept
@@ -101,27 +91,33 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
 	{
-		VirtualProtectCode.ModifyOperandsInOrder(
+		CodeManager.ModifyOperandsFor("RemoveProtection",
 			{
 				{TargetFunctionAddress},
-				{static_cast<DWORD>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP)},
+				{static_cast<DWORD>(TargetFunctionOverwriteSize)},
 				{static_cast<DWORD>(PAGE_EXECUTE_WRITECOPY)},
 				{ProcessUtils.GetFunctionAddress("kernelbase!VirtualProtect")}
 
 			}
 		);
-		AppendBufferToBuffer(PayloadBuffer, VirtualProtectCode.GetCodeBuffer());
 
-		RestoreFunctionMemoryCode.ModifyOperandsInOrder(
+		CodeManager.ModifyOperandsFor("CopyOriginalFunction",
 			{
 				{TargetFunctionAddress},
-				{PayloadAddress + DllToInject.size() + 1},
-				{static_cast<DWORD>(JumpInstructions::JumpInstructionSizes::RELATIVE_JUMP)},
+				{PayloadData.GetDataLocationByName("TargetFunctionBackup")},
+				{static_cast<DWORD>(TargetFunctionOverwriteSize)},
 				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
 
 			}
 		);
-		AppendBufferToBuffer(PayloadBuffer, RestoreFunctionMemoryCode.GetCodeBuffer());
+
+		CodeManager.ModifyOperandsFor("JumpToOriginalFunction",
+			{
+				{ static_cast<DWORD>(AssemblyCode::CalculateRelativeJumpDisplacement()) }
+			});
+
+		// We would like our return jump to jump back after executing all the code
+		//auto ReturnJumpBuffer = JumpInstructions::GenerateRelativeJumpCode(PayloadAddress + PayloadSize - TargetFunctionOverwriteSize, TargetFunctionAddress);
 		
 		return EOperationStatus::SUCCESS;
 	}
@@ -129,12 +125,10 @@ namespace FunInjector
 	EOperationStatus FuncHookProcessInjector::PrepareDataPayload() noexcept
 	{
 		// First we write the path to the dll at the beginning of the payload address
-		ByteBuffer DllPathBuffer(DllToInject.begin(), DllToInject.end());
-		DllPathBuffer.push_back('\0');
-		AppendBufferToBuffer(PayloadBuffer, DllPathBuffer);
-
-		// Now the first bytes of the function we hooked
-		AppendBufferToBuffer(PayloadBuffer, TargetFunctionStartBackup);
+		PayloadData.AddData("DllPath", DllToInject);
+		
+		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
+		PayloadData.AddData("TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, TargetFunctionOverwriteSize));
 
 		return EOperationStatus::SUCCESS;
 	}
