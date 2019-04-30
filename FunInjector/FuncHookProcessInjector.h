@@ -6,6 +6,9 @@
 
 namespace FunInjector
 {
+	// We hardcode this for now, should probably have a better way to define this
+	constexpr auto USED_JUMP_INSTRUCTION_SIZE = 0x5;
+
 	class FuncHookProcessInjector : public IProcessInjector
 	{
 	public:
@@ -51,9 +54,6 @@ namespace FunInjector
 
 		//
 		PayloadDataHolder PayloadData;
-
-		//
-		std::vector< ECodeType > PayloadCode;
 
 		//
 		AssemblyCodeManager CodeManager;

@@ -13,6 +13,8 @@ namespace FunInjector
 		VIRTUAL_PROTECT,
 		FLUSH_INSTRUCTION,
 		LOAD_DLL,
+		PUSH_REGISTERS,
+		POP_REGISTERS
 	};
 
 	class IAssemblyCodeGenerator

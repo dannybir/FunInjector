@@ -59,6 +59,80 @@ namespace FunInjector
 			};
 		}
 
+		static AssemblyCode GenerateFlushInstructionsCode()
+		{
+			// BOOL (HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize )
+			return 
+			{
+				// mov rdi, Operand: Pointer to GetCurrentProcess function
+				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
+
+				// call rdi ( GetCurrentProcess )
+				{ 0xff_b, 0xd7_b },
+
+				// mov rcx, rax
+				{ 0x48_b, 0x89_b, 0xc1_b},
+
+				// mov rdx, Operand: Base address
+				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
+
+				// mov r8, Operand: Size to copy
+				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
+
+				// mov rdi, Operand: Pointer to function
+				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
+
+				// call rdi
+				{ 0xff_b, 0xd7_b }
+			};
+		}
+
+		static AssemblyCode GeneratePushAllRegisters()
+		{
+			return
+			{
+				{0x50_b},
+				{0x51_b},
+				{0x52_b},
+				{0x53_b},
+				{0x54_b},
+				{0x55_b},
+				{0x56_b},
+				{0x57_b},
+				{0x41_b, 0x50_b},
+				{0x41_b, 0x51_b},
+				{0x41_b, 0x52_b},
+				{0x41_b, 0x53_b},
+				{0x41_b, 0x54_b},
+				{0x41_b, 0x55_b},
+				{0x41_b, 0x56_b},
+				{0x41_b, 0x57_b},
+			};
+		}
+
+		static AssemblyCode GeneratePopAllRegisters()
+		{
+			return
+			{
+				{0x41_b, 0x5f_b},
+				{0x41_b, 0x5e_b},
+				{0x41_b, 0x5d_b},
+				{0x41_b, 0x5c_b},
+				{0x41_b, 0x5b_b},
+				{0x41_b, 0x5a_b},
+				{0x41_b, 0x59_b},
+				{0x41_b, 0x58_b},
+				{0x5f_b},
+				{0x5e_b},
+				{0x5d_b},
+				{0x5c_b},
+				{0x5b_b},
+				{0x5a_b},
+				{0x59_b},
+				{0x58_b},
+			};
+		}
+
 		static AssemblyCode GenerateRelativeJump()
 		{
 			return
@@ -95,6 +169,11 @@ namespace FunInjector
 
 			GeneratorMap.insert(std::make_pair(ECodeType::MEMCOPY, GenerateMemCpyCode));
 			GeneratorMap.insert(std::make_pair(ECodeType::VIRTUAL_PROTECT, GenerateVirtualProtectCode));
+			GeneratorMap.insert(std::make_pair(ECodeType::FLUSH_INSTRUCTION, GenerateFlushInstructionsCode));
+
+			// Push/pop
+			GeneratorMap.insert(std::make_pair(ECodeType::PUSH_REGISTERS, GeneratePushAllRegisters));
+			GeneratorMap.insert(std::make_pair(ECodeType::POP_REGISTERS, GeneratePopAllRegisters));
 		}
 	};
 

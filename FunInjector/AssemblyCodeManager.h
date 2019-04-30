@@ -25,14 +25,23 @@ namespace FunInjector
 		AssemblyCodeManager() = default;
 		AssemblyCodeManager(ECodeBitnessMode BitnessMode);
 
-		RemoteAssemblyCode AddOrReturnByName(const std::string& CodeName, ECodeType CodeType);
+		void AddAssemblyCode(const std::string& CodeName, ECodeType CodeType);
+
+		std::optional<RemoteAssemblyCode> GetAssemblyCodeCopy(const std::string& CodeName) const;
+
 		void SetupCodeAddresses(DWORD64 BaseAddress);
 
+		SIZE_T GetTotalCodeSize() const;
+
+		DWORD64 GetCodeMemoryLocationFor(const std::string& CodeName) const;
+
+		ByteBuffer GetAllCodeBuffer() const;
 
 		void ModifyOperandsFor(const std::string& CodeName, const std::initializer_list< std::initializer_list<Operand>>& Operands);
 
 	private:
-		std::optional<RemoteAssemblyCode> GetAssemblyCodeByName(const std::string& CodeName) const;
+		auto GetAssemblyCodeByName(const std::string& CodeName);
+		auto GetAssemblyCodeByName(const std::string& CodeName) const;
 
 	private:
 

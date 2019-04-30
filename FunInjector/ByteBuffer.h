@@ -32,28 +32,37 @@ namespace FunInjector
 	template< typename StringType > // requires Range< StringType >
 	static ByteBuffer StringToByteBuffer(StringType&& String)
 	{
-		static_assert(std::is_same_v< StringType, std::string>, "Supplied type is not a std::string!");
+		static_assert(std::is_same_v< std::decay_t<StringType>, std::string>, "Supplied type is not a std::string!");
 
-		ByteBuffer StringBuffer(String.begin(), String.end());
-		StringBuffer.push_back(static_cast<std::byte>('\0'));
+		std::vector< unsigned char > StringBuffer(String.begin(), String.end());
+		StringBuffer.push_back('\0');
 
-		return StringBuffer;
+		ByteBuffer OutBuffer;
+		for (auto Char : StringBuffer)
+		{
+			OutBuffer.push_back(static_cast<Byte>(Char));
+		}
+
+		return OutBuffer;
 	}
 
 	template< typename Type >
 	static ByteBuffer TypeToBuffer(Type&& Value)
 	{
-		if constexpr (std::is_same_v < Type, std::string)
+		// Remove qualifiers
+		using T = std::decay_t<Type>;
+
+		if constexpr (std::is_same_v < T, std::string>)
 		{
 			return StringToByteBuffer(std::forward< Type >(Value));
 		}
-		else if constexpr (std::is_integral_v< Type >)
+		else if constexpr (std::is_integral_v< T >)
 		{
 			return IntegerToByteBuffer(Value);
 		}
 		else
 		{
-			static_assert("Supplied the wrong type, has to be either a std::string or an intergral type");
+			static_assert(false ,"Supplied the wrong type, has to be either a std::string or an intergral type");
 		}
 	}
 

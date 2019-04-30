@@ -15,47 +15,10 @@ namespace FunInjector
 		}
 	}
 
-	RemoteAssemblyCode AssemblyCodeManager::AddOrReturnByName(const std::string& CodeName, ECodeType CodeType)
+	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::string& CodeName)
 	{
-		std::optional<RemoteAssemblyCode> CodeOptional = GetAssemblyCodeByName(CodeName);
-		if (CodeOptional)
-		{
-			return CodeOptional.value();
-		}
-
-		RemoteAssemblyCode RAssemblyCode;
-		RAssemblyCode.Code = CodeGenerator.GeneratorMap[CodeType]();
-		RAssemblyCode.RemoteAddress = 0;
-
-		AssemblyCodeList.push_back( std::make_pair(CodeName, RAssemblyCode));
-
-		return RAssemblyCode;
-	}
-
-	void AssemblyCodeManager::SetupCodeAddresses(DWORD64 BaseAddress)
-	{
-		DWORD64 Offset = 0;
-		for (auto& [CodeName, RemoteCode] : AssemblyCodeList)
-		{
-			RemoteCode.RemoteAddress = BaseAddress + Offset;
-			Offset += RemoteCode.Code.GetCodeSize();
-		}
-	}
-
-	void AssemblyCodeManager::ModifyOperandsFor(const std::string& CodeName, const std::initializer_list<std::initializer_list<Operand>>& Operands)
-	{
-		std::optional<RemoteAssemblyCode> CodeOptional = GetAssemblyCodeByName(CodeName);
-		if (CodeOptional)
-		{
-			CodeOptional->Code.ModifyOperandsInOrder(Operands);
-		}
-	}
-
-	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeByName(const std::string& CodeName) const
-	{
-
-		auto Iterator = std::find_if(AssemblyCodeList.cbegin(), AssemblyCodeList.cend(),
-			[&](const auto & AssemblyCodePair)
+		auto Iterator = std::find_if(std::begin(AssemblyCodeList), std::end(AssemblyCodeList),
+			[&](auto & AssemblyCodePair)
 			{
 				if (AssemblyCodePair.first == CodeName)
 				{
@@ -68,14 +31,106 @@ namespace FunInjector
 			}
 		);
 
-		if (Iterator != AssemblyCodeList.end())
+		return Iterator;
+	}
+
+	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::string& CodeName) const
+	{
+		auto Iterator = std::find_if(std::begin(AssemblyCodeList), std::end(AssemblyCodeList),
+			[&](auto & AssemblyCodePair)
+			{
+				if (AssemblyCodePair.first == CodeName)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+		);
+
+		return Iterator;
+	}
+
+	void AssemblyCodeManager::AddAssemblyCode(const std::string& CodeName, ECodeType CodeType)
+	{
+
+		RemoteAssemblyCode RAssemblyCode;
+		RAssemblyCode.Code = CodeGenerator.GeneratorMap[CodeType]();
+		RAssemblyCode.RemoteAddress = 0;
+
+		AssemblyCodeList.push_back( std::make_pair(CodeName, RAssemblyCode));
+	}
+
+	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeCopy(const std::string& CodeName) const
+	{
+		auto CodeIterator = GetAssemblyCodeByName(CodeName);
+		if (CodeIterator != std::end(AssemblyCodeList))
 		{
-			return Iterator->second;
+			return CodeIterator->second;
 		}
 		else
 		{
 			return std::nullopt;
 		}
 	}
+
+	// TODO: Cache this
+	void AssemblyCodeManager::SetupCodeAddresses(DWORD64 BaseAddress)
+	{
+		DWORD64 Offset = 0;
+		for (auto& [CodeName, RemoteCode] : AssemblyCodeList)
+		{
+			RemoteCode.RemoteAddress = BaseAddress + Offset;
+			Offset += RemoteCode.Code.GetCodeSize();
+		}
+	}
+
+	// TODO: Cache this
+	SIZE_T AssemblyCodeManager::GetTotalCodeSize() const
+	{
+		SIZE_T TotalSize = 0;
+		for (const auto&[CodeName, RemoteCode] : AssemblyCodeList)
+		{
+			TotalSize += RemoteCode.Code.GetCodeSize();
+		}
+
+		return TotalSize;
+
+	}
+
+	DWORD64 AssemblyCodeManager::GetCodeMemoryLocationFor(const std::string & CodeName) const
+	{
+		auto CodeIterator = GetAssemblyCodeByName(CodeName);
+		if (CodeIterator != std::end(AssemblyCodeList))
+		{
+			return CodeIterator->second.RemoteAddress;
+		}
+
+		return 0;
+	}
+
+	ByteBuffer AssemblyCodeManager::GetAllCodeBuffer() const
+	{
+		ByteBuffer FinalBuffer;
+
+		for (const auto& RemoteCode : AssemblyCodeList)
+		{
+			AppendBufferToBuffer(FinalBuffer, RemoteCode.second.Code.GetCodeBuffer());
+		}
+
+		return FinalBuffer;
+	}
+
+	void AssemblyCodeManager::ModifyOperandsFor(const std::string& CodeName, const std::initializer_list<std::initializer_list<Operand>>& Operands)
+	{
+		auto ListIterator = GetAssemblyCodeByName(CodeName);
+		if (ListIterator != AssemblyCodeList.end())
+		{
+			ListIterator->second.Code.ModifyOperandsInOrder(Operands);
+		}
+	}
+
 }
 

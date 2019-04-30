@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "PayloadDataHolder.h"
 
 namespace FunInjector
@@ -12,7 +13,7 @@ namespace FunInjector
 		}
 		else
 		{
-			OutBuffer = TypeToBuffer(Value)
+			OutBuffer = TypeToBuffer(Value);
 		}
 
 	};

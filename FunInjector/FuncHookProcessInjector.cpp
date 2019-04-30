@@ -27,6 +27,8 @@ namespace FunInjector
 		{
 			return EOperationStatus::FAIL;
 		}
+
+		return EOperationStatus::SUCCESS;
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareForInjection() noexcept
@@ -36,41 +38,44 @@ namespace FunInjector
 			return EOperationStatus::FAIL;
 		}
 
-		// Prepare the code manager, initiate it using the target process bitness so it could create correct assembly
+		// Prepare the code manager, initiate it using the target process bitness so it could create correct assembly code
 		CodeManager = AssemblyCodeManager(ECodeBitnessMode::X64);
 
-		// Generate assembly code which will be ultimately injected into the target process for execution
-		
+		// Order is important here
+		CodeManager.AddAssemblyCode("PushRegisters", ECodeType::PUSH_REGISTERS);
+		CodeManager.AddAssemblyCode("RemoveProtection", ECodeType::VIRTUAL_PROTECT);
+		CodeManager.AddAssemblyCode("CopyOriginalFunction", ECodeType::MEMCOPY);
+		CodeManager.AddAssemblyCode("FlushInstructionCache", ECodeType::FLUSH_INSTRUCTION);
+		CodeManager.AddAssemblyCode("PopRegisters", ECodeType::POP_REGISTERS);
+		//
 
-		/*
-			Set up the jump instruction buffer which will jump to our payload code
-		*/
+		CodeManager.AddAssemblyCode("JumpToOriginalFunction", ECodeType::RELATIVE_JUMP);
+
 		TargetFunctionAddress = ProcessUtils.GetFunctionAddress(TargetFunctionName);
 		if (TargetFunctionAddress == 0)
 		{
 			return EOperationStatus::FAIL;
 		}
 
-
-		// Will insert needed data information into the payload buffer
 		PrepareDataPayload();
-		auto DataSize = PayloadData.GetTotalDataSize();
-
-		// Set up the jmp to the payload code
-		auto JumpCode = AssemblyCode::PrepareRelativeJump(TargetFunctionAddress, PayloadAddress + DataSize);
-		TargetFunctionOverwriteSize = JumpCode.GetCodeSize();
-		JmpHookBuffer = JumpCode.GetCodeBuffer();
 
 		// Find some free memory and allocate big enough memory
-		
-		auto CodeSize = CodeManager.GetSizeByTypeList(PayloadCode);
-
-		SIZE_T PayloadSize = DataSize + CodeSize;
+		SIZE_T PayloadSize = PayloadData.GetTotalDataSize() + CodeManager.GetTotalCodeSize();
 		PayloadAddress = ProcessUtils.FindAndAllocateExecuteMemoryInProcess(PayloadSize + 0x50);
 		if (PayloadAddress == 0)
 		{
 			return EOperationStatus::FAIL;
 		}
+
+		// Set up the jmp to the payload code
+		auto JumpCode = AssemblyCode::PrepareRelativeJump(TargetFunctionAddress, PayloadAddress + PayloadData.GetTotalDataSize());
+		JmpHookBuffer = JumpCode.GetCodeBuffer();
+
+		// The data will sit in the beginning of the memory block
+		PayloadData.SetBaseAddress(PayloadAddress);
+
+		// The code will sit right after the data block
+		CodeManager.SetupCodeAddresses(PayloadAddress + PayloadData.GetTotalDataSize());
 
 		// Everything is now ready to prepare the code payload
 		PrepareAssemblyCodePayload();
@@ -94,7 +99,7 @@ namespace FunInjector
 		CodeManager.ModifyOperandsFor("RemoveProtection",
 			{
 				{TargetFunctionAddress},
-				{static_cast<DWORD>(TargetFunctionOverwriteSize)},
+				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
 				{static_cast<DWORD>(PAGE_EXECUTE_WRITECOPY)},
 				{ProcessUtils.GetFunctionAddress("kernelbase!VirtualProtect")}
 
@@ -105,20 +110,31 @@ namespace FunInjector
 			{
 				{TargetFunctionAddress},
 				{PayloadData.GetDataLocationByName("TargetFunctionBackup")},
-				{static_cast<DWORD>(TargetFunctionOverwriteSize)},
+				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
 				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
 
 			}
 		);
 
+		CodeManager.ModifyOperandsFor("FlushInstructionCache",
+			{
+				{ProcessUtils.GetFunctionAddress("kernelbase!GetCurrentProcess")},
+				{TargetFunctionAddress},
+				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
+				{ProcessUtils.GetFunctionAddress("kernelbase!FlushInstructionCache")}
+
+			}
+			);
+
 		CodeManager.ModifyOperandsFor("JumpToOriginalFunction",
 			{
-				{ static_cast<DWORD>(AssemblyCode::CalculateRelativeJumpDisplacement()) }
-			});
+				{ static_cast<DWORD>(AssemblyCode::CalculateRelativeJumpDisplacement(
+				  CodeManager.GetCodeMemoryLocationFor("JumpToOriginalFunction"), TargetFunctionAddress)) }
+			}
+		);
 
-		// We would like our return jump to jump back after executing all the code
-		//auto ReturnJumpBuffer = JumpInstructions::GenerateRelativeJumpCode(PayloadAddress + PayloadSize - TargetFunctionOverwriteSize, TargetFunctionAddress);
-		
+		AppendBufferToBuffer(PayloadBuffer, CodeManager.GetAllCodeBuffer());
+
 		return EOperationStatus::SUCCESS;
 	}
 
@@ -128,7 +144,9 @@ namespace FunInjector
 		PayloadData.AddData("DllPath", DllToInject);
 		
 		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
-		PayloadData.AddData("TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, TargetFunctionOverwriteSize));
+		PayloadData.AddData("TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
+
+		AppendBufferToBuffer(PayloadBuffer, PayloadData.ConvertDataToBuffer());
 
 		return EOperationStatus::SUCCESS;
 	}

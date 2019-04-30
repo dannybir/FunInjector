@@ -16,7 +16,7 @@ namespace FunInjector
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
 		plog::init(plog::debug, &ColorConsoleLogger);
 
-		FuncHookProcessInjector injector(37036, "c:/dll.dll", "KERNELBASE!CreateFileW");
+		FuncHookProcessInjector injector(11616, "c:/dll.dll", "KERNELBASE!CreateFileW");
 		injector.PrepareForInjection();
 		injector.InjectDll();
 	}

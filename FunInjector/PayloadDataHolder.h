@@ -22,6 +22,11 @@ namespace FunInjector
 
 		ByteBuffer ConvertDataToBuffer() const;
 
+		inline void SetBaseAddress(DWORD64 BaseAddress)
+		{
+			PayloadBaseAddress = BaseAddress;
+		}
+
 	private:
 		SIZE_T GetDataTypeSize(const DataType& Data) const;
 
