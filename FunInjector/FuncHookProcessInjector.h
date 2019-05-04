@@ -7,7 +7,7 @@
 namespace FunInjector
 {
 	// We hardcode this for now, should probably have a better way to define this
-	constexpr auto USED_JUMP_INSTRUCTION_SIZE = 0x5;
+	constexpr auto USED_JUMP_INSTRUCTION_SIZE = 0x8;
 
 	class FuncHookProcessInjector : public IProcessInjector
 	{

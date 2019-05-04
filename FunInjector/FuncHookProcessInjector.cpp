@@ -100,7 +100,8 @@ namespace FunInjector
 			{
 				{TargetFunctionAddress},
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{static_cast<DWORD>(PAGE_EXECUTE_WRITECOPY)},
+				{static_cast<DWORD>(PAGE_EXECUTE_READWRITE)},
+				{PayloadData.GetDataLocationByName("OldCodeProtection")},
 				{ProcessUtils.GetFunctionAddress("kernelbase!VirtualProtect")}
 
 			}
@@ -110,8 +111,8 @@ namespace FunInjector
 			{
 				{TargetFunctionAddress},
 				{PayloadData.GetDataLocationByName("TargetFunctionBackup")},
-				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
+				//{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
+				//{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
 
 			}
 		);
@@ -145,6 +146,9 @@ namespace FunInjector
 		
 		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
 		PayloadData.AddData("TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
+
+		// 
+		PayloadData.AddData("OldCodeProtection", 0);
 
 		AppendBufferToBuffer(PayloadBuffer, PayloadData.ConvertDataToBuffer());
 

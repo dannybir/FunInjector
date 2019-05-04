@@ -8,24 +8,42 @@ namespace FunInjector
 {
 	class AssemblyCodeGenerator64 : public IAssemblyCodeGenerator
 	{
+		//static AssemblyCode GenerateMemCpyCode()
+		//{
+		//	return
+		//	{
+		//		// mov rcx, Operand: Target Address
+		//		{ 0x48_b,0xb9_b, DWORD64_OPERAND},
+
+		//		// mov rdx, Operand: Source Address
+		//		{ 0x48_b,0xba_b, DWORD64_OPERAND},
+
+		//		// mov r8, Operand: Size to copy
+		//		{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
+
+		//		// mov rdi, Operand: Pointer to function
+		//		{ 0x48_b,0xbf_b,DWORD64_OPERAND},
+
+		//		// call rdi
+		//		{ 0xff_b, 0xd7_b }
+		//	};
+		//}
+
 		static AssemblyCode GenerateMemCpyCode()
 		{
 			return
 			{
-				// mov rcx, Operand: Target Address
-				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
+				// mov rax, Operand: Target Address
+				{ 0x48_b,0xb8_b, DWORD64_OPERAND},
 
-				// mov rdx, Operand: Source Address
-				{ 0x48_b,0xba_b, DWORD64_OPERAND},
+				// mov rbx, Operand: Source Address
+				{ 0x48_b,0xbb_b, DWORD64_OPERAND},
 
-				// mov r8, Operand: Size to copy
-				{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
+				// mov rsi, qword ptr [rbx]
+				{ 0x48_b, 0x8b_b, 0x33_b},
 
-				// mov rdi, Operand: Pointer to function
-				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
-
-				// call rdi
-				{ 0xff_b, 0xd7_b }
+				// mov qword ptr [rax], rsi
+				{ 0x48_b, 0x89_b, 0x30_b}
 			};
 		}
 
@@ -33,9 +51,6 @@ namespace FunInjector
 		{
 			return
 			{
-				// add rsp,4
-				{ 0x48_b, 0x83_b, 0xc4_b, 0x04_b },
-
 				// mov rcx, Operand = Target Protect Address
 				{ 0x48_b, 0xb9_b, DWORD64_OPERAND},
 
@@ -46,7 +61,8 @@ namespace FunInjector
 				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
 
 				// mov r9, rsp
-				{ 0x49_b, 0x89_b, 0xe1_b},
+				//{ 0x49_b, 0x89_b, 0xe1_b},
+				{ 0x49_b, 0xb9_b, DWORD64_OPERAND},
 
 				// mov rdi, Operand = Pointer to VirtualProtect
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
@@ -54,8 +70,7 @@ namespace FunInjector
 				// call rdi
 				{ 0xff_b, 0xd7_b},
 
-				// sub rsp,4
-				{ 0x48_b, 0x83_b, 0xec_b, 0x04_b}
+
 			};
 		}
 
@@ -82,8 +97,14 @@ namespace FunInjector
 				// mov rdi, Operand: Pointer to function
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
 
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b},
+
 				// call rdi
-				{ 0xff_b, 0xd7_b }
+				{ 0xff_b, 0xd7_b },
+
+				// add rsp,54
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
 			};
 		}
 
@@ -95,8 +116,6 @@ namespace FunInjector
 				{0x51_b},
 				{0x52_b},
 				{0x53_b},
-				{0x54_b},
-				{0x55_b},
 				{0x56_b},
 				{0x57_b},
 				{0x41_b, 0x50_b},
@@ -107,6 +126,9 @@ namespace FunInjector
 				{0x41_b, 0x55_b},
 				{0x41_b, 0x56_b},
 				{0x41_b, 0x57_b},
+
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b}
 			};
 		}
 
@@ -114,6 +136,9 @@ namespace FunInjector
 		{
 			return
 			{
+				// add rsp,54
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
+
 				{0x41_b, 0x5f_b},
 				{0x41_b, 0x5e_b},
 				{0x41_b, 0x5d_b},
@@ -124,12 +149,10 @@ namespace FunInjector
 				{0x41_b, 0x58_b},
 				{0x5f_b},
 				{0x5e_b},
-				{0x5d_b},
-				{0x5c_b},
 				{0x5b_b},
 				{0x5a_b},
 				{0x59_b},
-				{0x58_b},
+				{0x58_b}
 			};
 		}
 
