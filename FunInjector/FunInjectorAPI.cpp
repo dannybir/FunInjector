@@ -3,7 +3,7 @@
 
 #include "pch.h"
 #include "FunInjectorAPI.h"
-
+#include <tlhelp32.h>
 #include "FuncHookProcessInjector.h"
 #include "AssemblyCode.h"
 
@@ -16,9 +16,32 @@ namespace FunInjector
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
 		plog::init(plog::debug, &ColorConsoleLogger);
 
-		FuncHookProcessInjector injector(14984, "c:/dll.dll", "KERNELBASE!CreateFileW");
+		DWORD ProcessId = 0;
+
+		PROCESSENTRY32 entry;
+		entry.dwSize = sizeof(PROCESSENTRY32);
+		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+		if (Process32First(snapshot, &entry) == TRUE)
+		{
+			do
+			{
+				std::wstring ProcessName(entry.szExeFile);
+				if (ProcessName == L"mspaint.exe")
+				{
+					ProcessId = entry.th32ProcessID;
+					break;
+				}
+
+			} while (Process32Next(snapshot, &entry) == TRUE);
+		}
+
+		CloseHandle(snapshot);
+
+		FuncHookProcessInjector injector(ProcessId, "C:/Users/DB/Source/Repos/FunInjector/FunInjector/x64/Debug/TESTDLL.dll", "KERNELBASE!CreateFileW");
 		injector.PrepareForInjection();
 		injector.InjectDll();
 	}
+
 }
 

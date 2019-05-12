@@ -46,6 +46,7 @@ namespace FunInjector
 		CodeManager.AddAssemblyCode("RemoveProtection", ECodeType::VIRTUAL_PROTECT);
 		CodeManager.AddAssemblyCode("CopyOriginalFunction", ECodeType::MEMCOPY);
 		CodeManager.AddAssemblyCode("FlushInstructionCache", ECodeType::FLUSH_INSTRUCTION);
+		CodeManager.AddAssemblyCode("LoadInjectedDLL", ECodeType::LOAD_DLL);
 		CodeManager.AddAssemblyCode("PopRegisters", ECodeType::POP_REGISTERS);
 		//
 
@@ -111,8 +112,8 @@ namespace FunInjector
 			{
 				{TargetFunctionAddress},
 				{PayloadData.GetDataLocationByName("TargetFunctionBackup")},
-				//{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				//{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
+				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
+				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
 
 			}
 		);
@@ -126,6 +127,14 @@ namespace FunInjector
 
 			}
 			);
+
+		CodeManager.ModifyOperandsFor("LoadInjectedDLL",
+			{
+				{PayloadData.GetDataLocationByName("DllPath")},
+				{ProcessUtils.GetFunctionAddress("kernelbase!LoadLibraryA")}
+
+			}
+		);
 
 		CodeManager.ModifyOperandsFor("JumpToOriginalFunction",
 			{

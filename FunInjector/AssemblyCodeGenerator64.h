@@ -8,44 +8,66 @@ namespace FunInjector
 {
 	class AssemblyCodeGenerator64 : public IAssemblyCodeGenerator
 	{
-		//static AssemblyCode GenerateMemCpyCode()
-		//{
-		//	return
-		//	{
-		//		// mov rcx, Operand: Target Address
-		//		{ 0x48_b,0xb9_b, DWORD64_OPERAND},
 
-		//		// mov rdx, Operand: Source Address
-		//		{ 0x48_b,0xba_b, DWORD64_OPERAND},
+		static AssemblyCode GenerateLoadDllCode()
+		{
+			return
+			{
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x70_b},
 
-		//		// mov r8, Operand: Size to copy
-		//		{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
+				// mov rcx, Operand: Address to path to DLL
+				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
 
-		//		// mov rdi, Operand: Pointer to function
-		//		{ 0x48_b,0xbf_b,DWORD64_OPERAND},
+				// mov rdi, Operand: Pointer to LoadLibrary function
+				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
 
-		//		// call rdi
-		//		{ 0xff_b, 0xd7_b }
-		//	};
-		//}
+				// call rdi
+				{ 0xff_b, 0xd7_b },
+
+				// add rsp,54
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x70_b },
+			};
+		}
 
 		static AssemblyCode GenerateMemCpyCode()
 		{
 			return
 			{
-				// mov rax, Operand: Target Address
-				{ 0x48_b,0xb8_b, DWORD64_OPERAND},
+				// mov rcx, Operand: Target Address
+				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
 
-				// mov rbx, Operand: Source Address
-				{ 0x48_b,0xbb_b, DWORD64_OPERAND},
+				// mov rdx, Operand: Source Address
+				{ 0x48_b,0xba_b, DWORD64_OPERAND},
 
-				// mov rsi, qword ptr [rbx]
-				{ 0x48_b, 0x8b_b, 0x33_b},
+				// mov r8, Operand: Size to copy
+				{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
 
-				// mov qword ptr [rax], rsi
-				{ 0x48_b, 0x89_b, 0x30_b}
+				// mov rdi, Operand: Pointer to function
+				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
+
+				// call rdi
+				{ 0xff_b, 0xd7_b }
 			};
 		}
+
+		//static AssemblyCode GenerateMemCpyCode()
+		//{
+		//	return
+		//	{
+		//		// mov rax, Operand: Target Address
+		//		{ 0x48_b,0xb8_b, DWORD64_OPERAND},
+
+		//		// mov rbx, Operand: Source Address
+		//		{ 0x48_b,0xbb_b, DWORD64_OPERAND},
+
+		//		// mov rsi, qword ptr [rbx]
+		//		{ 0x48_b, 0x8b_b, 0x33_b},
+
+		//		// mov qword ptr [rax], rsi
+		//		{ 0x48_b, 0x89_b, 0x30_b}
+		//	};
+		//}
 
 		static AssemblyCode GenerateVirtualProtectCode()
 		{
@@ -190,6 +212,7 @@ namespace FunInjector
 			GeneratorMap.insert(std::make_pair(ECodeType::ABSOLUTE_JUMP_64, GenerateAbsoluteJump));
 			GeneratorMap.insert(std::make_pair(ECodeType::RELATIVE_JUMP, GenerateRelativeJump));
 
+			GeneratorMap.insert(std::make_pair(ECodeType::LOAD_DLL, GenerateLoadDllCode));
 			GeneratorMap.insert(std::make_pair(ECodeType::MEMCOPY, GenerateMemCpyCode));
 			GeneratorMap.insert(std::make_pair(ECodeType::VIRTUAL_PROTECT, GenerateVirtualProtectCode));
 			GeneratorMap.insert(std::make_pair(ECodeType::FLUSH_INSTRUCTION, GenerateFlushInstructionsCode));
