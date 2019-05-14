@@ -7,8 +7,8 @@ namespace FunInjector
 {
 	// Function pointers definiton to functions in PSAPI.dll
 	using FEnumProcessModulesExPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE * lphModule, DWORD cb, LPDWORD lpcbNeeded, DWORD dwFilterFlag);
-	using FGetModuleFileNameExPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPSTR lpFilename, DWORD nSize);
-	using FGetModuleBaseNamePtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPSTR lpFilename, DWORD nSize);
+	using FGetModuleFileNameExWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
+	using FGetModuleBaseNameWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
 	using FGetModuleInformationPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPMODULEINFO pmi, DWORD nSize);
 
 	// Maximum amount of modules we can enumerate, should probably never pass this number for sane applications
@@ -35,11 +35,11 @@ namespace FunInjector
 
 		// Return the absolute address of a module in remote process memory
 		// Enumerate/Refresh must be called before to make module has been enumerated
-		DWORD64 GetModuleAddress(const std::string &ModuleName) const noexcept;
+		DWORD64 GetModuleAddress(const std::wstring &ModuleName) const noexcept;
 
 		// Return the aboslute address of the function in the process
 		// Enumerate/Refresh must be called before
-		DWORD64 GetFunctionAddress(const std::string_view FunctionName) const noexcept;
+		DWORD64 GetFunctionAddress(const std::wstring_view FunctionName) const noexcept;
 
 		// Read some bytes from the remote process into a buffer
 		// Process handle must be opened with correct access rights or this will fail
@@ -64,23 +64,23 @@ namespace FunInjector
 	private:
 		EOperationStatus PrepareForModuleEnumeration();
 		EOperationStatus LoadSymbolsForProcessModules();
-		EOperationStatus LoadSymbolForModule(const std::string_view ModulePath, const std::string_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize);
+		EOperationStatus LoadSymbolForModule(const std::wstring_view ModulePath, const std::wstring_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize);
 
 	private:
 		// Function pointers to psapi.dll functions
 		FEnumProcessModulesExPtr EnumProcessModulesExPtr = nullptr;
-		FGetModuleFileNameExPtr GetModuleFilenameExPtr = nullptr;
-		FGetModuleBaseNamePtr GetModuleBaseNamePtr = nullptr;
+		FGetModuleFileNameExWPtr GetModuleFilenameExWPtr = nullptr;
+		FGetModuleBaseNameWPtr GetModuleBaseNameWPtr = nullptr;
 		FGetModuleInformationPtr GetModuleInformationPtr = nullptr;
 
 		// An array of IMAGEHLP_MODULEW64 structures, which contain important information about each module
-		std::unordered_map< std::string, IMAGEHLP_MODULEW64 > ProcessModuleMap;
+		std::unordered_map< std::wstring, IMAGEHLP_MODULEW64 > ProcessModuleMap;
 
 		// A *valid* handle for the process, must contain needed access rights
 		HANDLE ProcessHandle = nullptr;
 
 		// 
-		std::string ProcessName;
+		std::wstring ProcessName;
 	};
 }
 

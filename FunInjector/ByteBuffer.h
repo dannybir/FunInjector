@@ -29,18 +29,26 @@ namespace FunInjector
 		return IntegerBuffer;
 	}
 
+	// Takes an integer, turns it into a byte array and appends to supplied buffer
+	template< typename IntegerType >
+	static void AppendIntegerToBuffer(ByteBuffer& Buffer, IntegerType Integer)
+	{
+		auto IntegerBuffer = IntegerToByteBuffer(Integer);
+		Buffer.insert(std::end(Buffer), std::begin(IntegerBuffer), std::end(IntegerBuffer));
+	}
+
 	template< typename StringType > // requires Range< StringType >
 	static ByteBuffer StringToByteBuffer(StringType&& String)
 	{
-		static_assert(std::is_same_v< std::decay_t<StringType>, std::string>, "Supplied type is not a std::string!");
+		static_assert(std::is_same_v< std::decay_t<StringType>, std::wstring>, "Supplied type is not a std::wstring!");
 
-		std::vector< unsigned char > StringBuffer(String.begin(), String.end());
-		StringBuffer.push_back('\0');
+		std::vector< wchar_t > StringBuffer(String.begin(), String.end());
+		StringBuffer.push_back(L'\0');
 
 		ByteBuffer OutBuffer;
 		for (auto Char : StringBuffer)
 		{
-			OutBuffer.push_back(static_cast<Byte>(Char));
+			AppendIntegerToBuffer(OutBuffer, Char);
 		}
 
 		return OutBuffer;
@@ -52,7 +60,7 @@ namespace FunInjector
 		// Remove qualifiers
 		using T = std::decay_t<Type>;
 
-		if constexpr (std::is_same_v < T, std::string>)
+		if constexpr (std::is_same_v < T, std::wstring>)
 		{
 			return StringToByteBuffer(std::forward< Type >(Value));
 		}
@@ -62,16 +70,8 @@ namespace FunInjector
 		}
 		else
 		{
-			static_assert(false ,"Supplied the wrong type, has to be either a std::string or an intergral type");
+			static_assert(false ,"Supplied the wrong type, has to be either a std::wstring or an intergral type");
 		}
-	}
-
-	// Takes an integer, turns it into a byte array and appends to supplied buffer
-	template< typename IntegerType >
-	static void AppendIntegerToBuffer(ByteBuffer& Buffer, IntegerType Integer)
-	{
-		auto IntegerBuffer = IntegerToByteBuffer(Integer);
-		Buffer.insert(std::end(Buffer), std::begin(IntegerBuffer), std::end(IntegerBuffer));
 	}
 
 	// Append a buffer to the end of another
@@ -81,9 +81,9 @@ namespace FunInjector
 	}
 
 
-	static std::string BufferToString(const ByteBuffer& Buffer)
+	static std::wstring BufferToString(const ByteBuffer& Buffer)
 	{
-		std::ostringstream StrStream;
+		std::wostringstream StrStream;
 
 		for (const auto& Byte : Buffer)
 		{

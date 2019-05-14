@@ -5,7 +5,7 @@
 namespace FunInjector::Utils
 {
 	template <typename Func, typename ... FuncArgs>
-	bool PerformWinApiCall(const std::string_view FuncName, Func&& FuncPtr, FuncArgs&& ... Args)
+	bool PerformWinApiCall(const std::wstring_view FuncName, Func&& FuncPtr, FuncArgs&& ... Args)
 	{
 		using RetType = std::invoke_result_t< Func, FuncArgs ... >;
 

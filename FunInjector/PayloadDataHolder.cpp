@@ -18,12 +18,12 @@ namespace FunInjector
 
 	};
 
-	void PayloadDataHolder::AddData(const std::string& Name, const DataType& Data)
+	void PayloadDataHolder::AddData(const std::wstring& Name, const DataType& Data)
 	{
 		DataList.push_back( std::make_pair(Name, Data) );
 	}
 
-	std::optional<DataType> PayloadDataHolder::GetDataByName(const std::string& Name) const
+	std::optional<DataType> PayloadDataHolder::GetDataByName(const std::wstring& Name) const
 	{
 		auto Iterator = std::find_if(DataList.cbegin(), DataList.cend(), [&](const auto& DataPair)
 		{
@@ -45,7 +45,7 @@ namespace FunInjector
 		return Iterator->second;
 	}
 
-	DWORD64 PayloadDataHolder::GetDataLocationByName(const std::string& Name) const
+	DWORD64 PayloadDataHolder::GetDataLocationByName(const std::wstring& Name) const
 	{
 		if (PayloadBaseAddress == 0)
 		{

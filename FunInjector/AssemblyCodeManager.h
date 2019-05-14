@@ -25,27 +25,27 @@ namespace FunInjector
 		AssemblyCodeManager() = default;
 		AssemblyCodeManager(ECodeBitnessMode BitnessMode);
 
-		void AddAssemblyCode(const std::string& CodeName, ECodeType CodeType);
+		void AddAssemblyCode(const std::wstring& CodeName, ECodeType CodeType);
 
-		std::optional<RemoteAssemblyCode> GetAssemblyCodeCopy(const std::string& CodeName) const;
+		std::optional<RemoteAssemblyCode> GetAssemblyCodeCopy(const std::wstring& CodeName) const;
 
 		void SetupCodeAddresses(DWORD64 BaseAddress);
 
 		SIZE_T GetTotalCodeSize() const;
 
-		DWORD64 GetCodeMemoryLocationFor(const std::string& CodeName) const;
+		DWORD64 GetCodeMemoryLocationFor(const std::wstring& CodeName) const;
 
 		ByteBuffer GetAllCodeBuffer() const;
 
-		void ModifyOperandsFor(const std::string& CodeName, const std::initializer_list< std::initializer_list<Operand>>& Operands);
+		void ModifyOperandsFor(const std::wstring& CodeName, const std::initializer_list< std::initializer_list<Operand>>& Operands);
 
 	private:
-		auto GetAssemblyCodeByName(const std::string& CodeName);
-		auto GetAssemblyCodeByName(const std::string& CodeName) const;
+		auto GetAssemblyCodeByName(const std::wstring& CodeName);
+		auto GetAssemblyCodeByName(const std::wstring& CodeName) const;
 
 	private:
 
-		std::vector< std::pair<std::string, RemoteAssemblyCode> > AssemblyCodeList;
+		std::vector< std::pair<std::wstring, RemoteAssemblyCode> > AssemblyCodeList;
 
 		IAssemblyCodeGenerator CodeGenerator;
 		ECodeBitnessMode ManagerBitnessMode;

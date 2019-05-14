@@ -12,7 +12,7 @@ namespace FunInjector
 	class FuncHookProcessInjector : public IProcessInjector
 	{
 	public:
-		FuncHookProcessInjector(const DWORD ProcessId, const std::string& DllName, const std::string& FunctionName );
+		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::wstring& FunctionName );
 		virtual ~FuncHookProcessInjector();
 
 		// When the everything is prepared, initiates the injection process
@@ -34,7 +34,7 @@ namespace FunInjector
 
 	private:
 		// Name of the victim function we would hook to initiate the loading of our dll
-		std::string TargetFunctionName;
+		std::wstring TargetFunctionName;
 
 		// Address of the function we would hook to start our injection
 		DWORD64		TargetFunctionAddress;

@@ -15,7 +15,7 @@ namespace FunInjector
 		}
 	}
 
-	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::string& CodeName)
+	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::wstring& CodeName)
 	{
 		auto Iterator = std::find_if(std::begin(AssemblyCodeList), std::end(AssemblyCodeList),
 			[&](auto & AssemblyCodePair)
@@ -34,7 +34,7 @@ namespace FunInjector
 		return Iterator;
 	}
 
-	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::string& CodeName) const
+	auto AssemblyCodeManager::GetAssemblyCodeByName(const std::wstring& CodeName) const
 	{
 		auto Iterator = std::find_if(std::begin(AssemblyCodeList), std::end(AssemblyCodeList),
 			[&](auto & AssemblyCodePair)
@@ -53,7 +53,7 @@ namespace FunInjector
 		return Iterator;
 	}
 
-	void AssemblyCodeManager::AddAssemblyCode(const std::string& CodeName, ECodeType CodeType)
+	void AssemblyCodeManager::AddAssemblyCode(const std::wstring& CodeName, ECodeType CodeType)
 	{
 
 		RemoteAssemblyCode RAssemblyCode;
@@ -63,7 +63,7 @@ namespace FunInjector
 		AssemblyCodeList.push_back( std::make_pair(CodeName, RAssemblyCode));
 	}
 
-	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeCopy(const std::string& CodeName) const
+	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeCopy(const std::wstring& CodeName) const
 	{
 		auto CodeIterator = GetAssemblyCodeByName(CodeName);
 		if (CodeIterator != std::end(AssemblyCodeList))
@@ -100,7 +100,7 @@ namespace FunInjector
 
 	}
 
-	DWORD64 AssemblyCodeManager::GetCodeMemoryLocationFor(const std::string & CodeName) const
+	DWORD64 AssemblyCodeManager::GetCodeMemoryLocationFor(const std::wstring & CodeName) const
 	{
 		auto CodeIterator = GetAssemblyCodeByName(CodeName);
 		if (CodeIterator != std::end(AssemblyCodeList))
@@ -123,7 +123,7 @@ namespace FunInjector
 		return FinalBuffer;
 	}
 
-	void AssemblyCodeManager::ModifyOperandsFor(const std::string& CodeName, const std::initializer_list<std::initializer_list<Operand>>& Operands)
+	void AssemblyCodeManager::ModifyOperandsFor(const std::wstring& CodeName, const std::initializer_list<std::initializer_list<Operand>>& Operands)
 	{
 		auto ListIterator = GetAssemblyCodeByName(CodeName);
 		if (ListIterator != AssemblyCodeList.end())

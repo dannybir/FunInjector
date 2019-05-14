@@ -4,7 +4,7 @@
 
 namespace FunInjector
 {
-	FuncHookProcessInjector::FuncHookProcessInjector( const DWORD ProcessId, const std::string& DllName, const std::string& FunctionName )
+	FuncHookProcessInjector::FuncHookProcessInjector( const DWORD ProcessId, const std::wstring& DllName, const std::wstring& FunctionName )
 		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(FunctionName)
 	{
 	}
@@ -42,15 +42,15 @@ namespace FunInjector
 		CodeManager = AssemblyCodeManager(ECodeBitnessMode::X64);
 
 		// Order is important here
-		CodeManager.AddAssemblyCode("PushRegisters", ECodeType::PUSH_REGISTERS);
-		CodeManager.AddAssemblyCode("RemoveProtection", ECodeType::VIRTUAL_PROTECT);
-		CodeManager.AddAssemblyCode("CopyOriginalFunction", ECodeType::MEMCOPY);
-		CodeManager.AddAssemblyCode("FlushInstructionCache", ECodeType::FLUSH_INSTRUCTION);
-		CodeManager.AddAssemblyCode("LoadInjectedDLL", ECodeType::LOAD_DLL);
-		CodeManager.AddAssemblyCode("PopRegisters", ECodeType::POP_REGISTERS);
+		CodeManager.AddAssemblyCode(L"PushRegisters", ECodeType::PUSH_REGISTERS);
+		CodeManager.AddAssemblyCode(L"RemoveProtection", ECodeType::VIRTUAL_PROTECT);
+		CodeManager.AddAssemblyCode(L"CopyOriginalFunction", ECodeType::MEMCOPY);
+		CodeManager.AddAssemblyCode(L"FlushInstructionCache", ECodeType::FLUSH_INSTRUCTION);
+		CodeManager.AddAssemblyCode(L"LoadInjectedDLL", ECodeType::LOAD_DLL);
+		CodeManager.AddAssemblyCode(L"PopRegisters", ECodeType::POP_REGISTERS);
 		//
 
-		CodeManager.AddAssemblyCode("JumpToOriginalFunction", ECodeType::RELATIVE_JUMP);
+		CodeManager.AddAssemblyCode(L"JumpToOriginalFunction", ECodeType::RELATIVE_JUMP);
 
 		TargetFunctionAddress = ProcessUtils.GetFunctionAddress(TargetFunctionName);
 		if (TargetFunctionAddress == 0)
@@ -97,49 +97,49 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
 	{
-		CodeManager.ModifyOperandsFor("RemoveProtection",
+		CodeManager.ModifyOperandsFor(L"RemoveProtection",
 			{
 				{TargetFunctionAddress},
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
 				{static_cast<DWORD>(PAGE_EXECUTE_READWRITE)},
-				{PayloadData.GetDataLocationByName("OldCodeProtection")},
-				{ProcessUtils.GetFunctionAddress("kernelbase!VirtualProtect")}
+				{PayloadData.GetDataLocationByName(L"OldCodeProtection")},
+				{ProcessUtils.GetFunctionAddress(L"kernelbase!VirtualProtect")}
 
 			}
 		);
 
-		CodeManager.ModifyOperandsFor("CopyOriginalFunction",
+		CodeManager.ModifyOperandsFor(L"CopyOriginalFunction",
 			{
 				{TargetFunctionAddress},
-				{PayloadData.GetDataLocationByName("TargetFunctionBackup")},
+				{PayloadData.GetDataLocationByName(L"TargetFunctionBackup")},
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{ProcessUtils.GetFunctionAddress("ntdll!memcpy")}
+				{ProcessUtils.GetFunctionAddress(L"ntdll!memcpy")}
 
 			}
 		);
 
-		CodeManager.ModifyOperandsFor("FlushInstructionCache",
+		CodeManager.ModifyOperandsFor(L"FlushInstructionCache",
 			{
-				{ProcessUtils.GetFunctionAddress("kernelbase!GetCurrentProcess")},
+				{ProcessUtils.GetFunctionAddress(L"kernelbase!GetCurrentProcess")},
 				{TargetFunctionAddress},
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{ProcessUtils.GetFunctionAddress("kernelbase!FlushInstructionCache")}
+				{ProcessUtils.GetFunctionAddress(L"kernelbase!FlushInstructionCache")}
 
 			}
 			);
 
-		CodeManager.ModifyOperandsFor("LoadInjectedDLL",
+		CodeManager.ModifyOperandsFor(L"LoadInjectedDLL",
 			{
-				{PayloadData.GetDataLocationByName("DllPath")},
-				{ProcessUtils.GetFunctionAddress("kernelbase!LoadLibraryA")}
+				{PayloadData.GetDataLocationByName(L"DllPath")},
+				{ProcessUtils.GetFunctionAddress(L"kernelbase!LoadLibraryW")}
 
 			}
 		);
 
-		CodeManager.ModifyOperandsFor("JumpToOriginalFunction",
+		CodeManager.ModifyOperandsFor(L"JumpToOriginalFunction",
 			{
 				{ static_cast<DWORD>(AssemblyCode::CalculateRelativeJumpDisplacement(
-				  CodeManager.GetCodeMemoryLocationFor("JumpToOriginalFunction"), TargetFunctionAddress)) }
+				  CodeManager.GetCodeMemoryLocationFor(L"JumpToOriginalFunction"), TargetFunctionAddress)) }
 			}
 		);
 
@@ -151,13 +151,13 @@ namespace FunInjector
 	EOperationStatus FuncHookProcessInjector::PrepareDataPayload() noexcept
 	{
 		// First we write the path to the dll at the beginning of the payload address
-		PayloadData.AddData("DllPath", DllToInject);
+		PayloadData.AddData(L"DllPath", DllToInject);
 		
 		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
-		PayloadData.AddData("TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
+		PayloadData.AddData(L"TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
 
 		// 
-		PayloadData.AddData("OldCodeProtection", 0);
+		PayloadData.AddData(L"OldCodeProtection", 0);
 
 		AppendBufferToBuffer(PayloadBuffer, PayloadData.ConvertDataToBuffer());
 

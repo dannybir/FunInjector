@@ -53,7 +53,7 @@ namespace FunInjector
 
 		int GetInstructionSize() const noexcept;
 		ByteBuffer GetInstructionBuffer() const noexcept;
-		std::string FormatIntoString() const noexcept;
+		std::wstring FormatIntoString() const noexcept;
 
 		inline bool DoesContainsOperands() const { return Operands.size() == 0 ? false : true; }
 
@@ -85,7 +85,7 @@ namespace FunInjector
 			return CodeBuffer;
 		}
 
-		std::string FormatIntoString() const;
+		std::wstring FormatIntoString() const;
 
 
 		// TODO: Should probably go into some utils file

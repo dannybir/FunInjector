@@ -9,7 +9,7 @@ namespace FunInjector
 	{
 
 	public:
-		IProcessInjector( const DWORD ProcId, const std::string& DllName ) 
+		IProcessInjector( const DWORD ProcId, const std::wstring& DllName ) 
 			: DllToInject( DllName ), ProcessId( ProcId )
 		{}
 
@@ -31,7 +31,7 @@ namespace FunInjector
 
 	protected:
 		// Full path of the DLL we would like to inject to the target process
-		std::string DllToInject;
+		std::wstring DllToInject;
 
 		// PID of the target process, used for Handle creation
 		DWORD ProcessId = 0;

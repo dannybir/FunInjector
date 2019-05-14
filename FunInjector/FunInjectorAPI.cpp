@@ -38,7 +38,7 @@ namespace FunInjector
 
 		CloseHandle(snapshot);
 
-		FuncHookProcessInjector injector(ProcessId, "C:/Users/DB/Source/Repos/FunInjector/FunInjector/x64/Debug/TESTDLL.dll", "KERNELBASE!CreateFileW");
+		FuncHookProcessInjector injector(ProcessId, L"C:/Users/dannyb/Source/Repos/FunInjector/FunInjector/x64/Debug/TESTDLL.dll", L"KERNELBASE!CreateFileW");
 		injector.PrepareForInjection();
 		injector.InjectDll();
 	}

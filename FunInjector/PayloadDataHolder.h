@@ -4,7 +4,7 @@
 
 namespace FunInjector
 {
-	using DataType = std::variant< std::string, ByteBuffer, int >;
+	using DataType = std::variant< std::wstring, ByteBuffer, int >;
 	class PayloadDataHolder
 	{
 
@@ -12,11 +12,11 @@ namespace FunInjector
 		PayloadDataHolder() = default;
 		PayloadDataHolder(DWORD64 BaseAddress) : PayloadBaseAddress(BaseAddress) {}
 
-		void AddData(const std::string& Name, const DataType& Data);
+		void AddData(const std::wstring& Name, const DataType& Data);
 
-		std::optional<DataType> GetDataByName(const std::string& Name) const;
+		std::optional<DataType> GetDataByName(const std::wstring& Name) const;
 
-		DWORD64 GetDataLocationByName(const std::string& Name) const;
+		DWORD64 GetDataLocationByName(const std::wstring& Name) const;
 
 		SIZE_T GetTotalDataSize() const;
 
@@ -31,7 +31,7 @@ namespace FunInjector
 		SIZE_T GetDataTypeSize(const DataType& Data) const;
 
 	private:
-		std::vector< std::pair< std::string, DataType >> DataList;
+		std::vector< std::pair< std::wstring, DataType >> DataList;
 
 		DWORD64 PayloadBaseAddress = 0;
 	};

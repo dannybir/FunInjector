@@ -23,12 +23,12 @@ namespace FunInjector
 		// Make sure handle is ok
 		if (ProcessHandle == INVALID_HANDLE_VALUE || ProcessHandle == nullptr)
 		{
-			if (!PerformWinApiCall("SymCleanup", SymCleanup, ProcessHandle))
+			if (!PerformWinApiCall(L"SymCleanup", SymCleanup, ProcessHandle))
 			{
 				LOG_WARNING << L"Failed to clear symbol information, might encounter unexpected results in module enumeration";
 			}
 			// Close the handle, its not needed anymore
-			if (!PerformWinApiCall("CloseHandle", CloseHandle, ProcessHandle))
+			if (!PerformWinApiCall(L"CloseHandle", CloseHandle, ProcessHandle))
 			{
 				LOG_ERROR << L"Failed to close handle: " << std::hex << ProcessHandle << L", handle will leak";
 			}
@@ -47,7 +47,7 @@ namespace FunInjector
 		return EOperationStatus::SUCCESS;
 	}
 
-	DWORD64 ProcessInformationUtils::GetModuleAddress(const std::string &ModuleName) const noexcept
+	DWORD64 ProcessInformationUtils::GetModuleAddress(const std::wstring &ModuleName) const noexcept
 	{
 		const auto& FoundMapIter = ProcessModuleMap.find(ModuleName);
 		if (FoundMapIter != ProcessModuleMap.cend())
@@ -60,11 +60,11 @@ namespace FunInjector
 		return 0;
 	}
 
-	DWORD64 ProcessInformationUtils::GetFunctionAddress(const std::string_view FunctionName) const noexcept
+	DWORD64 ProcessInformationUtils::GetFunctionAddress(const std::wstring_view FunctionName) const noexcept
 	{
-		SYMBOL_INFO Symbol{ 0 };
-		Symbol.SizeOfStruct = sizeof(SYMBOL_INFO);
-		if (!SymFromName(ProcessHandle, FunctionName.data(), &Symbol))
+		SYMBOL_INFOW Symbol{ 0 };
+		Symbol.SizeOfStruct = sizeof(SYMBOL_INFOW);
+		if (!SymFromNameW(ProcessHandle, FunctionName.data(), &Symbol))
 		{
 			LOG_ERROR << L"Failed to get symbol information for function: " << FunctionName;
 			return 0;
@@ -212,7 +212,7 @@ namespace FunInjector
 
 		// Initialize the symbol handler, we will use it to get information regarding modules and their functions in the remote process
 		// We will let SymInitialize handle the module enumeration for us
-		if (!PerformWinApiCall( "SymInitializeW", SymInitializeW ,ProcessHandle, L"", TRUE))
+		if (!PerformWinApiCall( L"SymInitializeW", SymInitializeW ,ProcessHandle, L"", TRUE))
 		{
 			auto Error = GetLastError();
 			LOG_WARNING << L"Failed to run SymInitialize, will not be able to properly enumarate remote process modules, Error= " << std::hex << Error;
@@ -238,7 +238,7 @@ namespace FunInjector
 	{
 		// First find free memory, we start the scan from location of ntdll.dll in the process
 		// The OS will always allocate ntdll to the same address location for all the processes 
-		DWORD64 NtdllAddress = GetModuleAddress("ntdll.dll");
+		DWORD64 NtdllAddress = GetModuleAddress(L"ntdll.dll");
 
 		auto FreeMemoryRegionAddress = NtdllAddress;
 		DWORD64 AllocationAddress = 0;
@@ -266,11 +266,11 @@ namespace FunInjector
 
 		// Just get addresses to the following functions, if any of them fails we cannot continue
 		EnumProcessModulesExPtr = reinterpret_cast<FEnumProcessModulesExPtr>(GetProcAddress(PsapiHandle, "EnumProcessModulesEx"));
-		GetModuleFilenameExPtr = reinterpret_cast<FGetModuleFileNameExPtr>(GetProcAddress(PsapiHandle, "GetModuleFileNameExA"));
-		GetModuleBaseNamePtr = reinterpret_cast<FGetModuleBaseNamePtr>(GetProcAddress(PsapiHandle, "GetModuleBaseNameA"));
+		GetModuleFilenameExWPtr = reinterpret_cast<FGetModuleFileNameExWPtr>(GetProcAddress(PsapiHandle, "GetModuleFileNameExW"));
+		GetModuleBaseNameWPtr = reinterpret_cast<FGetModuleBaseNameWPtr>(GetProcAddress(PsapiHandle, "GetModuleBaseNameW"));
 		GetModuleInformationPtr = reinterpret_cast<FGetModuleInformationPtr>(GetProcAddress(PsapiHandle, "GetModuleInformation"));
 
-		if (GetModuleInformationPtr == nullptr || GetModuleBaseNamePtr == nullptr || GetModuleFilenameExPtr == nullptr || EnumProcessModulesExPtr == nullptr)
+		if (GetModuleInformationPtr == nullptr || GetModuleBaseNameWPtr == nullptr || GetModuleFilenameExWPtr == nullptr || EnumProcessModulesExPtr == nullptr)
 		{
 			LOG_ERROR << L"Failed to load a PSAPI function for process module enumeration, cannot continue enumeration";
 			return EOperationStatus::FAIL;
@@ -295,7 +295,7 @@ namespace FunInjector
 		DWORD ActualBytesNeededForArr = 0;
 		DWORD ModuleListBufferSize = static_cast<DWORD>(sizeof(HMODULE) * MAX_ENUMERATED_MODULE_NUM);
 
-		if (!PerformWinApiCall("EnumProcessModulesExPtr", EnumProcessModulesExPtr,ProcessHandle, ModuleListArrPtr, ModuleListBufferSize, &ActualBytesNeededForArr, LIST_MODULES_ALL))
+		if (!PerformWinApiCall(L"EnumProcessModulesExPtr", EnumProcessModulesExPtr,ProcessHandle, ModuleListArrPtr, ModuleListBufferSize, &ActualBytesNeededForArr, LIST_MODULES_ALL))
 		{
 			LOG_ERROR << L"Failed to enumerate process modules for Process Handle: " << std::hex << ProcessHandle;
 			return EOperationStatus::FAIL;
@@ -321,15 +321,15 @@ namespace FunInjector
 			}
 
 			// Get module path, filesystem path to the module file
-			CHAR ModulePathname[MAX_STRING_LEN] = { 0 };
-			if (!PerformWinApiCall( "GetModuleFilenameExWPtr", GetModuleFilenameExPtr, ProcessHandle, ModuleListArrPtr[i], ModulePathname, MAX_STRING_LEN))
+			WCHAR ModulePathname[MAX_STRING_LEN] = { 0 };
+			if (!PerformWinApiCall( L"GetModuleFilenameExWPtr", GetModuleFilenameExWPtr, ProcessHandle, ModuleListArrPtr[i], ModulePathname, MAX_STRING_LEN))
 			{
 				continue;
 			}
 
 			// Get module name
-			CHAR ModuleName[MAX_STRING_LEN] = { 0 };
-			if (!PerformWinApiCall( "GetModuleBaseNameWPtr", GetModuleBaseNamePtr,ProcessHandle, ModuleListArrPtr[i], ModuleName, MAX_STRING_LEN))
+			WCHAR ModuleName[MAX_STRING_LEN] = { 0 };
+			if (!PerformWinApiCall( L"GetModuleBaseNameWPtr", GetModuleBaseNameWPtr,ProcessHandle, ModuleListArrPtr[i], ModuleName, MAX_STRING_LEN))
 			{
 				continue;
 			}
@@ -350,7 +350,7 @@ namespace FunInjector
 		return EOperationStatus::SUCCESS;
 	}
 
-	EOperationStatus ProcessInformationUtils::LoadSymbolForModule(const std::string_view ModulePath, const std::string_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize)
+	EOperationStatus ProcessInformationUtils::LoadSymbolForModule(const std::wstring_view ModulePath, const std::wstring_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize)
 	{
 		// SymLoadModule loads symbols for the supplied module, but in deffered mode, that information is not actually created until SymGetModuleInfo is called
 		// So its very important to call SymGetModuleInfo AFTER SymLoadModule everytime!
@@ -358,7 +358,7 @@ namespace FunInjector
 		// For 64bit processes, sometimes SymLoadModuleExW may return 0 with a last error of 0, this means it has been successeful
 		// So we need to continue anyway
 
-		auto LoadedBaseAddr = SymLoadModuleEx(ProcessHandle, NULL, ModulePath.data(), ModuleName.data(), ModuleBase, ModuleSize, NULL, 0);
+		auto LoadedBaseAddr = SymLoadModuleExW(ProcessHandle, NULL, ModulePath.data(), ModuleName.data(), ModuleBase, ModuleSize, NULL, 0);
 		auto LastError = GetLastError();
 		if ( LoadedBaseAddr == 0 && LastError != 0 )
 		{
@@ -368,13 +368,13 @@ namespace FunInjector
 
 		IMAGEHLP_MODULEW64 ModuleAdditionalInfo;
 		ModuleAdditionalInfo.SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
-		if (!PerformWinApiCall( "SymGetModuleInfoW64", SymGetModuleInfoW64, ProcessHandle, ModuleBase, &ModuleAdditionalInfo))
+		if (!PerformWinApiCall( L"SymGetModuleInfoW64", SymGetModuleInfoW64, ProcessHandle, ModuleBase, &ModuleAdditionalInfo))
 		{
 			LOG_WARNING << L"SymGetModuleInfoW64 failed for module: " << ModulePath << L", Error= " << std::hex << GetLastError();;
 			return EOperationStatus::FAIL;
 		}
 
-		const auto [ InsertedIter, IsInserted ] = ProcessModuleMap.insert_or_assign(std::string(ModuleName), ModuleAdditionalInfo);
+		const auto [ InsertedIter, IsInserted ] = ProcessModuleMap.insert_or_assign(std::wstring(ModuleName), ModuleAdditionalInfo);
 		if (!IsInserted)
 		{
 			LOG_ERROR << L"Insertion to process module map unexepctedly failed, perhaps memory issues?";

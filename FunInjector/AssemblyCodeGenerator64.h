@@ -13,20 +13,20 @@ namespace FunInjector
 		{
 			return
 			{
-				// sub rsp,54
-				{ 0x48_b, 0x83_b, 0xec_b, 0x70_b},
-
 				// mov rcx, Operand: Address to path to DLL
 				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
 
 				// mov rdi, Operand: Pointer to LoadLibrary function
 				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
 
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x28_b},
+
 				// call rdi
 				{ 0xff_b, 0xd7_b },
 
 				// add rsp,54
-				{ 0x48_b, 0x83_b, 0xc4_b, 0x70_b },
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x28_b },
 			};
 		}
 
@@ -89,10 +89,14 @@ namespace FunInjector
 				// mov rdi, Operand = Pointer to VirtualProtect
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
 
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b},
+
 				// call rdi
 				{ 0xff_b, 0xd7_b},
 
-
+				// add rsp,54
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
 			};
 		}
 
@@ -150,7 +154,7 @@ namespace FunInjector
 				{0x41_b, 0x57_b},
 
 				// sub rsp,54
-				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b}
+				//{ 0x48_b, 0x83_b, 0xec_b, 0x36_b}
 			};
 		}
 
@@ -159,7 +163,7 @@ namespace FunInjector
 			return
 			{
 				// add rsp,54
-				{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
+				//{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
 
 				{0x41_b, 0x5f_b},
 				{0x41_b, 0x5e_b},

@@ -83,9 +83,9 @@ namespace FunInjector
 		return FinalBuffer;
 	}
 
-	std::string AssemblyInstruction::FormatIntoString() const noexcept
+	std::wstring AssemblyInstruction::FormatIntoString() const noexcept
 	{
-		std::stringstream StrStream;
+		std::wstringstream StrStream;
 
 		auto OperandVisitor = [&](auto&& Value)
 		{
@@ -143,9 +143,9 @@ namespace FunInjector
 		GenerateCodeBuffer();
 	}
 
-	std::string AssemblyCode::FormatIntoString() const
+	std::wstring AssemblyCode::FormatIntoString() const
 	{
-		std::ostringstream StringStream;
+		std::wostringstream StringStream;
 
 		StringStream << std::endl;
 		int InstructionNumber = 0;
