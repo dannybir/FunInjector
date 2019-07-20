@@ -2,6 +2,7 @@
 
 #include "AssemblyCode.h"
 #include "AssemblyCodeGenerator64.h"
+#include "AssemblyCodeGenerator32.h"
 #include "pch.h"
 
 
@@ -16,7 +17,7 @@ namespace FunInjector
 	struct RemoteAssemblyCode
 	{
 		AssemblyCode Code;
-		DWORD64 RemoteAddress;
+		DWORD64 RemoteAddress = 0;
 	};
 
 	class AssemblyCodeManager
@@ -38,6 +39,8 @@ namespace FunInjector
 		ByteBuffer GetAllCodeBuffer() const;
 
 		void ModifyOperandsFor(const std::wstring& CodeName, const std::initializer_list< std::initializer_list<Operand>>& Operands);
+
+		Operand TranslateOperandSize(Operand OperandVal) const noexcept;
 
 	private:
 		auto GetAssemblyCodeByName(const std::wstring& CodeName);

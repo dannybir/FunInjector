@@ -27,7 +27,7 @@ namespace FunInjector
 			do
 			{
 				std::wstring ProcessName(entry.szExeFile);
-				if (ProcessName == L"mspaint.exe")
+				if (ProcessName == L"flux.exe")
 				{
 					ProcessId = entry.th32ProcessID;
 					break;
@@ -38,7 +38,7 @@ namespace FunInjector
 
 		CloseHandle(snapshot);
 
-		FuncHookProcessInjector injector(ProcessId, L"C:/Users/dannyb/Source/Repos/FunInjector/FunInjector/x64/Debug/TESTDLL.dll", L"KERNELBASE!CreateFileW");
+		FuncHookProcessInjector injector(ProcessId, L"C:\\Users\\DB\\Source\\Repos\\FunInjector\\FunInjector\\x64\\Debug\\TESTDLL.dll", L"KERNELBASE!CreateFileW");
 		injector.PrepareForInjection();
 		injector.InjectDll();
 	}

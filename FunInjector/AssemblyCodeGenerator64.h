@@ -1,7 +1,6 @@
 #pragma once
 
 #include "pch.h"
-#include "ProcessInformationUtils.h"
 #include "IAssemblyCodeGenerator.h"
 
 namespace FunInjector
@@ -34,14 +33,14 @@ namespace FunInjector
 		{
 			return
 			{
-				// mov rcx, Operand: Target Address
-				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
+				// mov r8, Operand: Size to copy
+				{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
 
 				// mov rdx, Operand: Source Address
 				{ 0x48_b,0xba_b, DWORD64_OPERAND},
 
-				// mov r8, Operand: Size to copy
-				{ 0x49_b,0xc7_b,0xc0_b, DWORD_OPERAND},
+				// mov rcx, Operand: Target Address
+				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
 
 				// mov rdi, Operand: Pointer to function
 				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
@@ -51,40 +50,21 @@ namespace FunInjector
 			};
 		}
 
-		//static AssemblyCode GenerateMemCpyCode()
-		//{
-		//	return
-		//	{
-		//		// mov rax, Operand: Target Address
-		//		{ 0x48_b,0xb8_b, DWORD64_OPERAND},
-
-		//		// mov rbx, Operand: Source Address
-		//		{ 0x48_b,0xbb_b, DWORD64_OPERAND},
-
-		//		// mov rsi, qword ptr [rbx]
-		//		{ 0x48_b, 0x8b_b, 0x33_b},
-
-		//		// mov qword ptr [rax], rsi
-		//		{ 0x48_b, 0x89_b, 0x30_b}
-		//	};
-		//}
-
 		static AssemblyCode GenerateVirtualProtectCode()
 		{
 			return
 			{
-				// mov rcx, Operand = Target Protect Address
-				{ 0x48_b, 0xb9_b, DWORD64_OPERAND},
-
-				// mov rdx, Operand = Size of Memory to protect
-				{ 0x48_b, 0xc7_b, 0xc2_b, DWORD_OPERAND},
+				// mov r9, Operand Old protect pointer
+				{ 0x49_b, 0xb9_b, DWORD64_OPERAND},
 
 				// mov r8, Operand = New Protect Value
 				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
 
-				// mov r9, rsp
-				//{ 0x49_b, 0x89_b, 0xe1_b},
-				{ 0x49_b, 0xb9_b, DWORD64_OPERAND},
+				// mov rdx, Operand = Size of Memory to protect
+				{ 0x48_b, 0xc7_b, 0xc2_b, DWORD_OPERAND},
+
+				// mov rcx, Operand = Target Protect Address
+				{ 0x48_b, 0xb9_b, DWORD64_OPERAND},
 
 				// mov rdi, Operand = Pointer to VirtualProtect
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
@@ -102,7 +82,6 @@ namespace FunInjector
 
 		static AssemblyCode GenerateFlushInstructionsCode()
 		{
-			// BOOL (HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize )
 			return 
 			{
 				// mov rdi, Operand: Pointer to GetCurrentProcess function
@@ -114,11 +93,11 @@ namespace FunInjector
 				// mov rcx, rax
 				{ 0x48_b, 0x89_b, 0xc1_b},
 
-				// mov rdx, Operand: Base address
-				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
-
 				// mov r8, Operand: Size to copy
 				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
+
+				// mov rdx, Operand: Base address
+				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
 
 				// mov rdi, Operand: Pointer to function
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},

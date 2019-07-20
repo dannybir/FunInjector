@@ -27,6 +27,9 @@
 #include <string>
 #include <string_view>
 
+//WIL
+#include <wil/resource.h>
+
 // Basic types
 #include <vector>
 #include <unordered_map>

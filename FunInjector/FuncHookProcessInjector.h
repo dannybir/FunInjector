@@ -26,7 +26,7 @@ namespace FunInjector
 		// Initializes the ProcessUtils object by creating a process handle for it
 		// and then performs initialization of it by invoking enumeration of modules
 		// If this fails, at the moment, injection will fail as-well
-		virtual EOperationStatus PrepareProcInfoUtils() noexcept override;
+		virtual EOperationStatus PrepareProcUtils() noexcept override;
 
 	private:
 		EOperationStatus PrepareAssemblyCodePayload() noexcept;
@@ -57,6 +57,9 @@ namespace FunInjector
 
 		//
 		AssemblyCodeManager CodeManager;
+
+		//
+		FunInjector::ProcessUtils::ProcessMemoryUtils ProcMemUtils;
 
 	};
 

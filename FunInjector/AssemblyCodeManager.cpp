@@ -11,7 +11,7 @@ namespace FunInjector
 		}
 		else
 		{
-			//CodeGenerator = AssemblyCodeGenerator32();
+			CodeGenerator = AssemblyCodeGenerator32();
 		}
 	}
 
@@ -130,6 +130,19 @@ namespace FunInjector
 		{
 			ListIterator->second.Code.ModifyOperandsInOrder(Operands);
 		}
+	}
+
+	Operand AssemblyCodeManager::TranslateOperandSize(Operand OperandVal) const noexcept
+	{
+		if (ManagerBitnessMode == ECodeBitnessMode::X86)
+		{
+			if (OperandVal.index() == 0)
+			{
+				return static_cast<DWORD>(std::get<0>(OperandVal));
+			}
+		}
+
+		return OperandVal;
 	}
 
 }

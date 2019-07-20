@@ -25,7 +25,5 @@ namespace FunInjector
 
 		//
 		std::unordered_map< ECodeType, std::function< AssemblyCode() >> GeneratorMap;
-
-
 	};
 }

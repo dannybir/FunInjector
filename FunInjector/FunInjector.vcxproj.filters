@@ -29,9 +29,6 @@
     <ClInclude Include="pch.h">
       <Filter>API</Filter>
     </ClInclude>
-    <ClInclude Include="ProcessInformationUtils.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
     <ClInclude Include="FunInjectorAPI.h">
       <Filter>API</Filter>
     </ClInclude>
@@ -65,13 +62,13 @@
     <ClInclude Include="PayloadDataHolder.h">
       <Filter>PayloadData</Filter>
     </ClInclude>
+    <ClInclude Include="ProcessUtils.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ProcessInformationUtils.cpp">
-      <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="FunInjectorAPI.cpp">
       <Filter>Source Files</Filter>
@@ -87,6 +84,12 @@
     </ClCompile>
     <ClCompile Include="PayloadDataHolder.cpp">
       <Filter>PayloadData</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessMemoryUtils.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessInformationUtils.cpp">
+      <Filter>Utils</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

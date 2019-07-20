@@ -17,13 +17,13 @@ namespace FunInjector
 	EOperationStatus FuncHookProcessInjector::InjectDll() noexcept
 	{
 		// First write the payload
-		if (ProcessUtils.WriteBufferToProcess(PayloadBuffer, PayloadAddress, PayloadBuffer.size()) == EOperationStatus::FAIL)
+		if (ProcMemUtils.WriteBufferToProcess(PayloadBuffer, PayloadAddress, PayloadBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
 
 		// Second, write the hook
-		if (ProcessUtils.WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size()) == EOperationStatus::FAIL)
+		if (ProcMemUtils.WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
@@ -33,13 +33,13 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareForInjection() noexcept
 	{
-		if (PrepareProcInfoUtils() == EOperationStatus::FAIL)
+		if (PrepareProcUtils() == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
 
 		// Prepare the code manager, initiate it using the target process bitness so it could create correct assembly code
-		CodeManager = AssemblyCodeManager(ECodeBitnessMode::X64);
+		CodeManager = AssemblyCodeManager(ECodeBitnessMode::X86);
 
 		// Order is important here
 		CodeManager.AddAssemblyCode(L"PushRegisters", ECodeType::PUSH_REGISTERS);
@@ -52,7 +52,7 @@ namespace FunInjector
 
 		CodeManager.AddAssemblyCode(L"JumpToOriginalFunction", ECodeType::RELATIVE_JUMP);
 
-		TargetFunctionAddress = ProcessUtils.GetFunctionAddress(TargetFunctionName);
+		TargetFunctionAddress = ProcessInfoUtils.GetFunctionAddress(TargetFunctionName);
 		if (TargetFunctionAddress == 0)
 		{
 			return EOperationStatus::FAIL;
@@ -62,7 +62,7 @@ namespace FunInjector
 
 		// Find some free memory and allocate big enough memory
 		SIZE_T PayloadSize = PayloadData.GetTotalDataSize() + CodeManager.GetTotalCodeSize();
-		PayloadAddress = ProcessUtils.FindAndAllocateExecuteMemoryInProcess(PayloadSize + 0x50);
+		PayloadAddress = ProcMemUtils.FindAndAllocateExecuteMemoryInProcess(ProcessInfoUtils.GetModuleAddress(L"ntdll.dll"), PayloadSize + 0x50);
 		if (PayloadAddress == 0)
 		{
 			return EOperationStatus::FAIL;
@@ -82,7 +82,7 @@ namespace FunInjector
 		PrepareAssemblyCodePayload();
 	}
 
-	EOperationStatus FuncHookProcessInjector::PrepareProcInfoUtils() noexcept
+	EOperationStatus FuncHookProcessInjector::PrepareProcUtils() noexcept
 	{
 		auto ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessId);
 		if (ProcessHandle == nullptr)
@@ -91,47 +91,69 @@ namespace FunInjector
 			return EOperationStatus::FAIL;
 		}
 
-		ProcessUtils = ProcessInformationUtils(ProcessHandle, false);
-		return ProcessUtils.EnumerateProcessModules();
+		ProcMemUtils = FunInjector::ProcessUtils::ProcessMemoryUtils(ProcessHandle);
+		ProcessInfoUtils = FunInjector::ProcessUtils::ProcessInformationUtils(ProcessHandle, false);
+
+		return ProcessInfoUtils.EnumerateProcessModules();
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
 	{
 		CodeManager.ModifyOperandsFor(L"RemoveProtection",
 			{
-				{TargetFunctionAddress},
-				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{static_cast<DWORD>(PAGE_EXECUTE_READWRITE)},
-				{PayloadData.GetDataLocationByName(L"OldCodeProtection")},
-				{ProcessUtils.GetFunctionAddress(L"kernelbase!VirtualProtect")}
+				// lpflOldProtect
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"OldCodeProtection"))},
 
+				// NewProtect
+				{static_cast<DWORD>(PAGE_EXECUTE_READWRITE)},
+
+				// Code size
+				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
+
+				// Target Address
+				{CodeManager.TranslateOperandSize( TargetFunctionAddress )},
+
+				// Function pointer
+				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!VirtualProtect"))}
 			}
 		);
 
 		CodeManager.ModifyOperandsFor(L"CopyOriginalFunction",
 			{
-				{TargetFunctionAddress},
-				{PayloadData.GetDataLocationByName(L"TargetFunctionBackup")},
+				// Copy size
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{ProcessUtils.GetFunctionAddress(L"ntdll!memcpy")}
+
+				// Source
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"TargetFunctionBackup"))},
+
+				// Destination
+				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
+				
+				// Function pointer
+				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"ntdll!memcpy"))}
 
 			}
 		);
 
 		CodeManager.ModifyOperandsFor(L"FlushInstructionCache",
 			{
-				{ProcessUtils.GetFunctionAddress(L"kernelbase!GetCurrentProcess")},
-				{TargetFunctionAddress},
+				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!GetCurrentProcess"))},
+
+				// Size of code to flush
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
-				{ProcessUtils.GetFunctionAddress(L"kernelbase!FlushInstructionCache")}
+
+				// Target of flush
+				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
+				
+				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!FlushInstructionCache"))}
 
 			}
 			);
 
 		CodeManager.ModifyOperandsFor(L"LoadInjectedDLL",
 			{
-				{PayloadData.GetDataLocationByName(L"DllPath")},
-				{ProcessUtils.GetFunctionAddress(L"kernelbase!LoadLibraryW")}
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"DllPath"))},
+				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!LoadLibraryW"))}
 
 			}
 		);
@@ -154,7 +176,7 @@ namespace FunInjector
 		PayloadData.AddData(L"DllPath", DllToInject);
 		
 		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
-		PayloadData.AddData(L"TargetFunctionBackup", ProcessUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
+		PayloadData.AddData(L"TargetFunctionBackup", ProcMemUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
 
 		// 
 		PayloadData.AddData(L"OldCodeProtection", 0);
