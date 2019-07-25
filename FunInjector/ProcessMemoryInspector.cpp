@@ -1,20 +1,21 @@
 #include "pch.h"
-#include "ProcessUtils.h"
-#include "Utils.h"
+#include "ProcessMemoryInspector.h"
 
-namespace FunInjector::ProcessUtils
+
+namespace FunInjector::ProcessInspector
 {
-	ProcessMemoryUtils::ProcessMemoryUtils(HANDLE ProcHandle) : ProcessHandle( ProcHandle )
+	ProcessMemoryInspector::ProcessMemoryInspector(wil::shared_handle ProcHandle)
+		: ProcessHandle( ProcHandle )
 	{
 	}
 
-	ByteBuffer ProcessMemoryUtils::ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const noexcept
+	ByteBuffer ProcessMemoryInspector::ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const noexcept
 	{
 		// This is the buffer we will read into, pre-allocate with supplied size
 		ByteBuffer ReadBuffer(ReadSize);
 		SIZE_T ActualReadSize = 0;
 
-		if (ReadProcessMemory(ProcessHandle, reinterpret_cast<PVOID>(ReadAddress), &ReadBuffer[0], ReadSize, &ActualReadSize))
+		if (ReadProcessMemory(ProcessHandle.get(), reinterpret_cast<PVOID>(ReadAddress), &ReadBuffer[0], ReadSize, &ActualReadSize))
 		{
 			// Check that we read the amount we wanted
 			if (ReadSize == ActualReadSize)
@@ -33,12 +34,12 @@ namespace FunInjector::ProcessUtils
 		return ByteBuffer();
 	}
 
-	EOperationStatus ProcessMemoryUtils::WriteBufferToProcess(const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
+	EOperationStatus ProcessMemoryInspector::WriteBufferToProcess( const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
 	{
 		// This is the buffer we will read into, pre-allocate with supplied size
 		SIZE_T ActualWriteSize = 0;
 
-		if (WriteProcessMemory(ProcessHandle, reinterpret_cast<PVOID>(WriteAddress), &WriteBuffer[0], WriteSize, &ActualWriteSize))
+		if (WriteProcessMemory(ProcessHandle.get(), reinterpret_cast<PVOID>(WriteAddress), &WriteBuffer[0], WriteSize, &ActualWriteSize))
 		{
 			// Check that we read the amount we wanted
 			if (WriteSize == ActualWriteSize)
@@ -58,13 +59,13 @@ namespace FunInjector::ProcessUtils
 		return EOperationStatus::FAIL;
 	}
 
-	DWORD64 ProcessMemoryUtils::FindFreeMemoryRegion(DWORD64 ScanLocation, SIZE_T FreeMemorySize, bool ScanDown) const noexcept
+	DWORD64 ProcessMemoryInspector::FindFreeMemoryRegion(DWORD64 ScanLocation, SIZE_T FreeMemorySize, bool ScanDown) const noexcept
 	{
 		PVOID ScanLocationPtr = reinterpret_cast<PVOID>(ScanLocation);
 
 		// Get information about the memory layout at the start of the scan location
 		MEMORY_BASIC_INFORMATION MemInfo{ 0 };
-		if (VirtualQueryEx(ProcessHandle, ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
+		if (VirtualQueryEx(ProcessHandle.get(), ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
 		{
 			LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
 			return 0;
@@ -77,7 +78,7 @@ namespace FunInjector::ProcessUtils
 			int DirectionMultiplier = (ScanDown) ? -1 : 1;
 			ScanLocationPtr = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocationPtr) + (DirectionMultiplier * MemInfo.RegionSize));
 
-			if (VirtualQueryEx(ProcessHandle, ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
+			if (VirtualQueryEx(ProcessHandle.get(), ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
 			{
 				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
 				return 0;
@@ -95,9 +96,9 @@ namespace FunInjector::ProcessUtils
 		return reinterpret_cast<DWORD64>(ScanLocationPtr);
 	}
 
-	DWORD64 ProcessMemoryUtils::AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept
+	DWORD64 ProcessMemoryInspector::AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept
 	{
-		PVOID AllocationBase = VirtualAllocEx(ProcessHandle, reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+		PVOID AllocationBase = VirtualAllocEx(ProcessHandle.get(), reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (AllocationBase != nullptr)
 		{
 			LOG_DEBUG << L"Successefully Allocated: " << AllocationSize << L" bytes in memory address: "
@@ -109,7 +110,7 @@ namespace FunInjector::ProcessUtils
 		LOG_WARNING << L"Failed to allocate: " << AllocationSize << L" bytes in memory address: "
 			<< std::hex << MemoryAddress << L" with PAGE_EXECUTE_READWRITE protection, Error= " << GetLastError();
 
-		AllocationBase = VirtualAllocEx(ProcessHandle, reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+		AllocationBase = VirtualAllocEx(ProcessHandle.get(), reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 		if (AllocationBase == nullptr)
 		{
 			// We fail to allocate even a RW page, guess something is wrong with the process handle
@@ -122,7 +123,7 @@ namespace FunInjector::ProcessUtils
 
 		// Try to reprotect the page to be executeable
 		DWORD OldProtect = 0;
-		if (!VirtualProtectEx(ProcessHandle, AllocationBase, AllocationSize, PAGE_EXECUTE_READWRITE, &OldProtect))
+		if (!VirtualProtectEx(ProcessHandle.get(), AllocationBase, AllocationSize, PAGE_EXECUTE_READWRITE, &OldProtect))
 		{
 			LOG_ERROR << L"Failed to reprotect memory address: " << std::hex << AllocationBase << L" with PAGE_EXECUTE_READWRITE protection"
 				<< L", although allocation was successeful, the allocated is not executeable, so we return 0" << L", Error= " << GetLastError();;
@@ -135,7 +136,7 @@ namespace FunInjector::ProcessUtils
 		return reinterpret_cast<DWORD64>(AllocationBase);
 	}
 
-	DWORD64 ProcessMemoryUtils::FindAndAllocateExecuteMemoryInProcess(DWORD64 BaseSearchAddress, SIZE_T AllocSize) const noexcept
+	DWORD64 ProcessMemoryInspector::FindAndAllocateExecuteMemoryInProcess(DWORD64 BaseSearchAddress, SIZE_T AllocSize) const noexcept
 	{
 		auto FreeMemoryRegionAddress = BaseSearchAddress;
 		DWORD64 AllocationAddress = 0;
@@ -153,7 +154,7 @@ namespace FunInjector::ProcessUtils
 			}
 
 			MEMORY_BASIC_INFORMATION MemInfo{ 0 };
-			if (VirtualQueryEx(ProcessHandle, reinterpret_cast<PVOID>(FreeMemoryRegionAddress), &MemInfo, sizeof(MemInfo)) == 0)
+			if (VirtualQueryEx(ProcessHandle.get(), reinterpret_cast<PVOID>(FreeMemoryRegionAddress), &MemInfo, sizeof(MemInfo)) == 0)
 			{
 				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << FreeMemoryRegionAddress << L", but this failed with Error= " << std::hex << GetLastError();
 				return 0;

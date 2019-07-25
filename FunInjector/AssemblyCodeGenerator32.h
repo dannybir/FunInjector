@@ -40,7 +40,10 @@ namespace FunInjector
 				{ 0xb8_b, DWORD_OPERAND},
 
 				// call eax
-				{ 0xff_b, 0xd0_b }
+				{ 0xff_b, 0xd0_b },
+
+				// add esp,12
+				{ 0x83_b, 0xc4_b, 0xc_b },
 			};
 		}
 
@@ -82,19 +85,16 @@ namespace FunInjector
 				{ 0x50_b },
 
 				// push Operand: Base address
-				{ 0xb8_b, DWORD_OPERAND},
+				{ 0x68_b, DWORD_OPERAND},
 
 				// push Operand: Size to copy
-				{ 0xb8_b, DWORD_OPERAND},
+				{ 0x68_b, DWORD_OPERAND},
 
 				// mov eax, Operand: Pointer to function
 				{ 0xb8_b, DWORD_OPERAND},
 
 				// call eax
 				{ 0xff_b, 0xd0_b },
-
-				// add esp,54
-				{ 0x83_b, 0xc4_b, 0x36_b },
 			};
 		}
 

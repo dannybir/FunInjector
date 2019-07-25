@@ -5,6 +5,7 @@
 
 namespace FunInjector::ProcessUtils
 {
+	/*
 	using namespace FunInjector::Utils;
 
 	ProcessInformationUtils::ProcessInformationUtils(HANDLE ProcHandle, bool Enumerate) : ProcessHandle(ProcHandle)
@@ -47,15 +48,7 @@ namespace FunInjector::ProcessUtils
 
 	DWORD64 ProcessInformationUtils::GetModuleAddress(const std::wstring &ModuleName) const noexcept
 	{
-		const auto& FoundMapIter = ProcessModuleMap.find(ModuleName);
-		if (FoundMapIter != ProcessModuleMap.cend())
-		{
-			LOG_DEBUG << L"Found address: " << std::hex << FoundMapIter->second.BaseOfImage << L" for module: " << ModuleName;
-			return FoundMapIter->second.BaseOfImage;
-		}
 
-		LOG_WARNING << L"Unable to find module: " << ModuleName << L" in the process module map, a refresh or enumeration may be needed";
-		return 0;
 	}
 
 	DWORD64 ProcessInformationUtils::GetFunctionAddress(const std::wstring_view FunctionName) const noexcept
@@ -115,100 +108,10 @@ namespace FunInjector::ProcessUtils
 		return std::wstring();
 	}
 
-	EOperationStatus ProcessInformationUtils::PrepareForModuleEnumeration()
-	{
-		auto PsapiHandle = LoadLibrary(L"psapi.dll");
-		if (PsapiHandle == NULL)
-		{
-			LOG_ERROR << L"Failed to load PSAPI.dll, cannot properly enumerate remote process modules";
-			// We cannot continue enumeration without a handle to psapi
-			return EOperationStatus::FAIL;
-		}
-
-		// Just get addresses to the following functions, if any of them fails we cannot continue
-		EnumProcessModulesExPtr = reinterpret_cast<FEnumProcessModulesExPtr>(GetProcAddress(PsapiHandle, "EnumProcessModulesEx"));
-		GetModuleFilenameExWPtr = reinterpret_cast<FGetModuleFileNameExWPtr>(GetProcAddress(PsapiHandle, "GetModuleFileNameExW"));
-		GetModuleBaseNameWPtr = reinterpret_cast<FGetModuleBaseNameWPtr>(GetProcAddress(PsapiHandle, "GetModuleBaseNameW"));
-		GetModuleInformationPtr = reinterpret_cast<FGetModuleInformationPtr>(GetProcAddress(PsapiHandle, "GetModuleInformation"));
-
-		if (GetModuleInformationPtr == nullptr || GetModuleBaseNameWPtr == nullptr || GetModuleFilenameExWPtr == nullptr || EnumProcessModulesExPtr == nullptr)
-		{
-			LOG_ERROR << L"Failed to load a PSAPI function for process module enumeration, cannot continue enumeration";
-			return EOperationStatus::FAIL;
-		}
-
-		return EOperationStatus::SUCCESS;
-	}
 
 	EOperationStatus ProcessInformationUtils::LoadSymbolsForProcessModules()
 	{
-		// To load the modules, we must first enumerate them to get more information
-		// We use the helpful psapi.dll and the functions it contains
-		// psapi.dll is a standard Windows DLL which always resides in System32/SysWow64
-		// We dynamically link in order to make sure we are using operating system compatible binaries
-		if (PrepareForModuleEnumeration() == EOperationStatus::FAIL)
-		{
-			return EOperationStatus::FAIL;
-		}
 
-		// Allocate the module array on the stack, a normal process should not have more than MAX_ENUMERATED_MODULE_NUM modules
-		HMODULE ModuleListArrPtr[MAX_ENUMERATED_MODULE_NUM];
-		DWORD ActualBytesNeededForArr = 0;
-		DWORD ModuleListBufferSize = static_cast<DWORD>(sizeof(HMODULE) * MAX_ENUMERATED_MODULE_NUM);
-
-		if (!PerformWinApiCall(L"EnumProcessModulesExPtr", EnumProcessModulesExPtr,ProcessHandle, ModuleListArrPtr, ModuleListBufferSize, &ActualBytesNeededForArr, LIST_MODULES_ALL))
-		{
-			LOG_ERROR << L"Failed to enumerate process modules for Process Handle: " << std::hex << ProcessHandle;
-			return EOperationStatus::FAIL;
-		}
-
-		// We need a big buffer, this should never happen in reality
-		if (ActualBytesNeededForArr > ModuleListBufferSize)
-		{
-			LOG_ERROR << L"Allocated buffer for the enumerated module list is not big enough somehow, process contains more modules than MAX_ENUMERATED_MODULE_NUM";
-			return EOperationStatus::FAIL;
-		}
-
-		// Iterate the retrieved module array and get some more information
-		auto ModulesArrLength = ActualBytesNeededForArr / sizeof(HMODULE);
-		int LoadedModules = 0;
-		for (int i = 0; i < ModulesArrLength; i++)
-		{
-			// Get information about the module size and its base allocation location
-			MODULEINFO	ModuleInfo;
-			if (!GetModuleInformationPtr(ProcessHandle, ModuleListArrPtr[i], &ModuleInfo, sizeof(ModuleInfo)))
-			{
-				continue;
-			}
-
-			// Get module path, filesystem path to the module file
-			WCHAR ModulePathname[MAX_STRING_LEN] = { 0 };
-			if (!PerformWinApiCall( L"GetModuleFilenameExWPtr", GetModuleFilenameExWPtr, ProcessHandle, ModuleListArrPtr[i], ModulePathname, MAX_STRING_LEN))
-			{
-				continue;
-			}
-
-			// Get module name
-			WCHAR ModuleName[MAX_STRING_LEN] = { 0 };
-			if (!PerformWinApiCall( L"GetModuleBaseNameWPtr", GetModuleBaseNameWPtr,ProcessHandle, ModuleListArrPtr[i], ModuleName, MAX_STRING_LEN))
-			{
-				continue;
-			}
-
-			if (LoadSymbolForModule(ModulePathname, ModuleName, reinterpret_cast<DWORD64>(ModuleInfo.lpBaseOfDll), ModuleInfo.SizeOfImage) == EOperationStatus::SUCCESS)
-			{
-				LoadedModules++;
-			}
-		}
-
-		if (LoadedModules == 0)
-		{
-			LOG_ERROR << L"Was able to enumerate 0 modules!";
-			return EOperationStatus::FAIL;
-		}
-
-		LOG_INFO << L"Successefully enumerated " << LoadedModules << L" modules for process: " << ProcessName;
-		return EOperationStatus::SUCCESS;
 	}
 
 	EOperationStatus ProcessInformationUtils::LoadSymbolForModule(const std::wstring_view ModulePath, const std::wstring_view ModuleName, DWORD64 ModuleBase, DWORD ModuleSize)
@@ -249,5 +152,6 @@ namespace FunInjector::ProcessUtils
 
 		return EOperationStatus::SUCCESS;
 	}
+	*/
 }
 

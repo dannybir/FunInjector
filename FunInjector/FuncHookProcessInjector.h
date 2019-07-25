@@ -3,6 +3,7 @@
 #include "IProcessInjector.h"
 #include "AssemblyCodeManager.h"
 #include "PayloadDataHolder.h"
+#include "RemoteProcessInspector.h"
 
 namespace FunInjector
 {
@@ -12,7 +13,8 @@ namespace FunInjector
 	class FuncHookProcessInjector : public IProcessInjector
 	{
 	public:
-		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::wstring& FunctionName );
+		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::string& TargetFuncName,
+			const std::wstring& TargetModName);
 		virtual ~FuncHookProcessInjector();
 
 		// When the everything is prepared, initiates the injection process
@@ -22,11 +24,11 @@ namespace FunInjector
 		// Initialies all needed buffers and addresses to start the injection process
 		virtual EOperationStatus PrepareForInjection() noexcept override;
 
-	protected:
+	private:
 		// Initializes the ProcessUtils object by creating a process handle for it
 		// and then performs initialization of it by invoking enumeration of modules
 		// If this fails, at the moment, injection will fail as-well
-		virtual EOperationStatus PrepareProcUtils() noexcept override;
+		EOperationStatus PrepareProcessInspector() noexcept;
 
 	private:
 		EOperationStatus PrepareAssemblyCodePayload() noexcept;
@@ -34,7 +36,10 @@ namespace FunInjector
 
 	private:
 		// Name of the victim function we would hook to initiate the loading of our dll
-		std::wstring TargetFunctionName;
+		std::string TargetFunctionName;
+
+		// 
+		std::wstring TargetModuleName;
 
 		// Address of the function we would hook to start our injection
 		DWORD64		TargetFunctionAddress;
@@ -59,7 +64,7 @@ namespace FunInjector
 		AssemblyCodeManager CodeManager;
 
 		//
-		FunInjector::ProcessUtils::ProcessMemoryUtils ProcMemUtils;
+		FunInjector::ProcessInspector::RemoteProcessInspector ProcessInspector;
 
 	};
 

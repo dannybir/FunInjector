@@ -37,6 +37,9 @@
 #include <optional>
 #include <functional>
 #include <variant>
+#include <filesystem>
+#include <array>
+#include <memory>
 
 #include "ByteBuffer.h"
 

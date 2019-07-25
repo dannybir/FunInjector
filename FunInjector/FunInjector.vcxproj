@@ -48,7 +48,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -167,7 +167,12 @@
     <ClInclude Include="IProcessInjector.h" />
     <ClInclude Include="PayloadDataHolder.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ProcessFunctionInspector.h" />
+    <ClInclude Include="ProcessInformationInspector.h" />
+    <ClInclude Include="ProcessMemoryInspector.h" />
+    <ClInclude Include="ProcessModuleInspector.h" />
     <ClInclude Include="ProcessUtils.h" />
+    <ClInclude Include="RemoteProcessInspector.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
@@ -182,8 +187,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ProcessMemoryUtils.cpp" />
+    <ClCompile Include="ProcessFunctionInspector.cpp" />
+    <ClCompile Include="ProcessInformationInspector.cpp" />
+    <ClCompile Include="ProcessMemoryInspector.cpp" />
     <ClCompile Include="ProcessInformationUtils.cpp" />
+    <ClCompile Include="ProcessModuleInspector.cpp" />
+    <ClCompile Include="RemoteProcessInspector.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

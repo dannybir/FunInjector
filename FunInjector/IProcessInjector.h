@@ -24,20 +24,11 @@ namespace FunInjector
 		virtual EOperationStatus PrepareForInjection() = 0;
 
 	protected:
-		// Initializes the ProcessUtils object by creating a process handle for it
-		// and then performs initialization of it by invoking enumeration of modules
-		// If this fails, at the moment, injection will fail as-well
-		virtual EOperationStatus PrepareProcUtils() = 0;
-
-	protected:
 		// Full path of the DLL we would like to inject to the target process
 		std::wstring DllToInject;
 
 		// PID of the target process, used for Handle creation
 		DWORD ProcessId = 0;
-
-		// A helper object which helps us to write/read/query information to/from the target process
-		FunInjector::ProcessUtils::ProcessInformationUtils ProcessInfoUtils;
 
 		// Injection will not continue if this flag is false, will be set to true once PrepareForInjection has completed successefully
 		bool IsPrepared = false;

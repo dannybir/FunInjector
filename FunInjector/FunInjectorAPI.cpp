@@ -27,7 +27,7 @@ namespace FunInjector
 			do
 			{
 				std::wstring ProcessName(entry.szExeFile);
-				if (ProcessName == L"flux.exe")
+				if (ProcessName == L"notepad++.exe")
 				{
 					ProcessId = entry.th32ProcessID;
 					break;
@@ -37,8 +37,7 @@ namespace FunInjector
 		}
 
 		CloseHandle(snapshot);
-
-		FuncHookProcessInjector injector(ProcessId, L"C:\\Users\\DB\\Source\\Repos\\FunInjector\\FunInjector\\x64\\Debug\\TESTDLL.dll", L"KERNELBASE!CreateFileW");
+		FuncHookProcessInjector injector(ProcessId, L"C:\\Users\\dannyb\\source\\repos\\FunInjector\\FunInjector\\Debug\\TESTDLL.dll", "CreateFileW", L"kernelbase");
 		injector.PrepareForInjection();
 		injector.InjectDll();
 	}

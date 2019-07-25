@@ -4,8 +4,9 @@
 
 namespace FunInjector
 {
-	FuncHookProcessInjector::FuncHookProcessInjector( const DWORD ProcessId, const std::wstring& DllName, const std::wstring& FunctionName )
-		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(FunctionName)
+	FuncHookProcessInjector::FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::string& TargetFuncName,
+		const std::wstring& TargetModName)
+		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(TargetFuncName), TargetModuleName(TargetModName)
 	{
 	}
 
@@ -17,13 +18,13 @@ namespace FunInjector
 	EOperationStatus FuncHookProcessInjector::InjectDll() noexcept
 	{
 		// First write the payload
-		if (ProcMemUtils.WriteBufferToProcess(PayloadBuffer, PayloadAddress, PayloadBuffer.size()) == EOperationStatus::FAIL)
+		if (ProcessInspector.GetProcessMemoryInspector()->WriteBufferToProcess(PayloadBuffer, PayloadAddress, PayloadBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
 
 		// Second, write the hook
-		if (ProcMemUtils.WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size()) == EOperationStatus::FAIL)
+		if (ProcessInspector.GetProcessMemoryInspector()->WriteBufferToProcess(JmpHookBuffer, TargetFunctionAddress, JmpHookBuffer.size()) == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
@@ -33,7 +34,7 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareForInjection() noexcept
 	{
-		if (PrepareProcUtils() == EOperationStatus::FAIL)
+		if (PrepareProcessInspector() == EOperationStatus::FAIL)
 		{
 			return EOperationStatus::FAIL;
 		}
@@ -52,7 +53,7 @@ namespace FunInjector
 
 		CodeManager.AddAssemblyCode(L"JumpToOriginalFunction", ECodeType::RELATIVE_JUMP);
 
-		TargetFunctionAddress = ProcessInfoUtils.GetFunctionAddress(TargetFunctionName);
+		TargetFunctionAddress = ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress(TargetFunctionName, TargetModuleName);
 		if (TargetFunctionAddress == 0)
 		{
 			return EOperationStatus::FAIL;
@@ -62,7 +63,8 @@ namespace FunInjector
 
 		// Find some free memory and allocate big enough memory
 		SIZE_T PayloadSize = PayloadData.GetTotalDataSize() + CodeManager.GetTotalCodeSize();
-		PayloadAddress = ProcMemUtils.FindAndAllocateExecuteMemoryInProcess(ProcessInfoUtils.GetModuleAddress(L"ntdll.dll"), PayloadSize + 0x50);
+		PayloadAddress = ProcessInspector.GetProcessMemoryInspector()->FindAndAllocateExecuteMemoryInProcess(
+			ProcessInspector.GetProcessModuleInspector()->GetModuleAddress(L"ntdll"), PayloadSize + 0x50);
 		if (PayloadAddress == 0)
 		{
 			return EOperationStatus::FAIL;
@@ -82,19 +84,18 @@ namespace FunInjector
 		PrepareAssemblyCodePayload();
 	}
 
-	EOperationStatus FuncHookProcessInjector::PrepareProcUtils() noexcept
+	EOperationStatus FuncHookProcessInjector::PrepareProcessInspector() noexcept
 	{
-		auto ProcessHandle = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessId);
-		if (ProcessHandle == nullptr)
+		wil::shared_handle ProcessHandle( OpenProcess(PROCESS_ALL_ACCESS, false, ProcessId) );
+		if (!ProcessHandle)
 		{
 			LOG_ERROR << L"Failed to open process handle for process id: " << ProcessId;
 			return EOperationStatus::FAIL;
 		}
 
-		ProcMemUtils = FunInjector::ProcessUtils::ProcessMemoryUtils(ProcessHandle);
-		ProcessInfoUtils = FunInjector::ProcessUtils::ProcessInformationUtils(ProcessHandle, false);
-
-		return ProcessInfoUtils.EnumerateProcessModules();
+		ProcessInspector.InitializeInspectors(ProcessHandle);
+		
+		return EOperationStatus::SUCCESS;
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
@@ -114,7 +115,8 @@ namespace FunInjector
 				{CodeManager.TranslateOperandSize( TargetFunctionAddress )},
 
 				// Function pointer
-				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!VirtualProtect"))}
+				{CodeManager.TranslateOperandSize(
+				ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress("VirtualProtect",L"kernelbase"))}
 			}
 		);
 
@@ -130,14 +132,16 @@ namespace FunInjector
 				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
 				
 				// Function pointer
-				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"ntdll!memcpy"))}
+				{CodeManager.TranslateOperandSize(
+				ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress("memcpy",L"ntdll"))}
 
 			}
 		);
 
 		CodeManager.ModifyOperandsFor(L"FlushInstructionCache",
 			{
-				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!GetCurrentProcess"))},
+				{CodeManager.TranslateOperandSize(
+				ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress("GetCurrentProcess",L"kernelbase"))},
 
 				// Size of code to flush
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
@@ -145,7 +149,8 @@ namespace FunInjector
 				// Target of flush
 				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
 				
-				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!FlushInstructionCache"))}
+				{CodeManager.TranslateOperandSize(
+					ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress("FlushInstructionCache",L"kernelbase"))}
 
 			}
 			);
@@ -153,7 +158,8 @@ namespace FunInjector
 		CodeManager.ModifyOperandsFor(L"LoadInjectedDLL",
 			{
 				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"DllPath"))},
-				{CodeManager.TranslateOperandSize(ProcessInfoUtils.GetFunctionAddress(L"kernelbase!LoadLibraryW"))}
+				{CodeManager.TranslateOperandSize(
+				ProcessInspector.GetProcessFunctionInspector()->GetRemoteFunctionAddress("LoadLibraryW",L"kernelbase"))}
 
 			}
 		);
@@ -176,7 +182,7 @@ namespace FunInjector
 		PayloadData.AddData(L"DllPath", DllToInject);
 		
 		// Read the function we want to hook so we could restore ( unhook ) it after our payload was executed
-		PayloadData.AddData(L"TargetFunctionBackup", ProcMemUtils.ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
+		PayloadData.AddData(L"TargetFunctionBackup", ProcessInspector.GetProcessMemoryInspector()->ReadBufferFromProcess(TargetFunctionAddress, USED_JUMP_INSTRUCTION_SIZE));
 
 		// 
 		PayloadData.AddData(L"OldCodeProtection", 0);
