@@ -164,6 +164,7 @@
     <ClInclude Include="FuncHookProcessInjector.h" />
     <ClInclude Include="FunInjectorAPI.h" />
     <ClInclude Include="IAssemblyCodeGenerator.h" />
+    <ClInclude Include="ErrorHandler.h" />
     <ClInclude Include="IProcessInjector.h" />
     <ClInclude Include="PayloadDataHolder.h" />
     <ClInclude Include="pch.h" />
@@ -192,7 +193,6 @@
     <ClCompile Include="ProcessMemoryInspector.cpp" />
     <ClCompile Include="ProcessInformationUtils.cpp" />
     <ClCompile Include="ProcessModuleInspector.cpp" />
-    <ClCompile Include="RemoteProcessInspector.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

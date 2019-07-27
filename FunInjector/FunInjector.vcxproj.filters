@@ -24,6 +24,9 @@
     <Filter Include="AssemblyCode\AssemblyCodeGenerator">
       <UniqueIdentifier>{0bf0f84b-77b0-42d7-8ea8-9c95860655d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ErrorHandler">
+      <UniqueIdentifier>{4ed5ac29-05e8-4fc1-b1fe-ac00f8470989}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -80,6 +83,9 @@
     <ClInclude Include="ProcessInformationInspector.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="ErrorHandler.h">
+      <Filter>ErrorHandler</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -101,9 +107,6 @@
       <Filter>PayloadData</Filter>
     </ClCompile>
     <ClCompile Include="ProcessInformationUtils.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="RemoteProcessInspector.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="ProcessModuleInspector.cpp">

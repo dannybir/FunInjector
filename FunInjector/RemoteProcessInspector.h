@@ -6,41 +6,43 @@
 
 namespace FunInjector::ProcessInspector
 {
+	template <typename ... InspectorTypes >
 	class RemoteProcessInspector
 	{
 	public:
-		RemoteProcessInspector();
-		~RemoteProcessInspector();
-
-		EOperationStatus InitializeInspectors(wil::shared_handle ProcessHandle) noexcept;
-
-		inline const auto& GetProcessMemoryInspector() const
+		EOperationStatus InitializeInspectors(wil::shared_handle ProcessHandle) noexcept
 		{
-			return ProcMemInspector;
+			HANDLE_EXCEPTION_BEGIN;
+
+			auto ProcInfoInspector = std::make_shared< ProcessInformationInspector >(ProcessHandle);
+			ProcInfoInspector->RetrieveInformation();
+
+			auto ProcMemInspector = std::make_shared< ProcessMemoryInspector >(ProcessHandle);
+
+			auto ProcModuleInspector = std::make_shared< ProcessModuleInspector >(ProcessHandle);
+			ProcModuleInspector->AttachMemoryInspector(ProcMemInspector);
+			ProcModuleInspector->AttachInfoInspector(ProcInfoInspector);
+			ProcModuleInspector->LoadInformation();
+
+			auto ProcFuncInspector = std::make_shared< ProcessFunctionInspector >(ProcessHandle);
+			ProcFuncInspector->AttachMemoryInspector(ProcMemInspector);
+			ProcFuncInspector->AttachModuleInspector(ProcModuleInspector);
+
+			Inspectors = std::make_tuple(ProcInfoInspector, ProcMemInspector, ProcModuleInspector, ProcFuncInspector);
+
+			HANDLE_EXCEPTION_END(EOperationStatus::FAIL);
+
+			return EOperationStatus::SUCCESS;
 		}
 
-		inline const auto& GetProcessModuleInspector() const
+		template <class InspectorType>
+		decltype(auto) GetInspectorByType()
 		{
-			return ProcModuleInspector;
+			return std::get<std::shared_ptr<std::decay_t<InspectorType>>>(Inspectors);
 		}
-
-		inline const auto& GetProcessFunctionInspector() const
-		{
-			return ProcFuncInspector;
-		}
-
-		std::filesystem::path GetProcessPath() const noexcept;
-		std::wstring		  GetProcessName() const noexcept;
-
-		bool				  IsProcess64Bit() const noexcept;
 
 	private:
-		std::shared_ptr< ProcessMemoryInspector> ProcMemInspector;
-		std::shared_ptr< ProcessModuleInspector> ProcModuleInspector;
-		std::shared_ptr< ProcessFunctionInspector> ProcFuncInspector;
-		std::shared_ptr< ProcessInformationInspector > ProcInfoInspector;
-
-		wil::shared_handle ProcessHandle;
+		std::tuple<std::shared_ptr<InspectorTypes>...> Inspectors;
 	};
 }
 

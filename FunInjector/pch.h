@@ -41,6 +41,9 @@
 #include <array>
 #include <memory>
 
+// Error handler utility
+#include "ErrorHandler.h"
+
 #include "ByteBuffer.h"
 
 #endif //PCH_H

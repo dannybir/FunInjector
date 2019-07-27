@@ -7,6 +7,8 @@
 
 namespace FunInjector
 {
+	using namespace FunInjector::ProcessInspector;
+
 	// We hardcode this for now, should probably have a better way to define this
 	constexpr auto USED_JUMP_INSTRUCTION_SIZE = 0x8;
 
@@ -28,7 +30,7 @@ namespace FunInjector
 		// Initializes the ProcessUtils object by creating a process handle for it
 		// and then performs initialization of it by invoking enumeration of modules
 		// If this fails, at the moment, injection will fail as-well
-		EOperationStatus PrepareProcessInspector() noexcept;
+		void PrepareProcessInspector();
 
 	private:
 		EOperationStatus PrepareAssemblyCodePayload() noexcept;
@@ -64,7 +66,7 @@ namespace FunInjector
 		AssemblyCodeManager CodeManager;
 
 		//
-		FunInjector::ProcessInspector::RemoteProcessInspector ProcessInspector;
+		RemoteProcessInspector< ProcessInformationInspector, ProcessMemoryInspector, ProcessModuleInspector, ProcessFunctionInspector> ProcessInspector;
 
 	};
 

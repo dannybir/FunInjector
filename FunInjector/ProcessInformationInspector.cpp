@@ -4,7 +4,7 @@
 
 namespace FunInjector::ProcessInspector
 {
-	ProcessInformationInspector::ProcessInformationInspector(wil::shared_handle ProcHandle)
+	ProcessInformationInspector::ProcessInformationInspector(wil::shared_handle ProcHandle) : ProcessHandle( ProcHandle )
 	{
 	}
 
