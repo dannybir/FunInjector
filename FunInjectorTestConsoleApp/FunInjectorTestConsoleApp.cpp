@@ -3,9 +3,34 @@
 
 #include <iostream>
 #include "../FunInjector/FunInjectorAPI.h"
+#include <Windows.h>
+#include <tlhelp32.h>
 
 int main()
 {
+	DWORD ProcessId = 0;
+
+	PROCESSENTRY32 entry;
+	entry.dwSize = sizeof(PROCESSENTRY32);
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+	if (Process32First(snapshot, &entry) == TRUE)
+	{
+		do
+		{
+			std::wstring ProcessName(entry.szExeFile);
+			if (ProcessName == L"mspaint.exe")
+			{
+				ProcessId = entry.th32ProcessID;
+				break;
+			}
+
+		} while (Process32Next(snapshot, &entry) == TRUE);
+	}
+
+	CloseHandle(snapshot);
+
+	
 	FunInjector::InjectDll();
 }
 

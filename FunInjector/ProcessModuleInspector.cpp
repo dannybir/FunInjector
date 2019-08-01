@@ -63,7 +63,7 @@ namespace FunInjector::ProcessInspector
 			ModuleData.ModuleBitness = (IsModule64bitInternal(ModuleData.ModuleBuffer)) ? EModuleBitness::BIT_64 : EModuleBitness::BIT_32;
 
 			// Put the modulename into lowercase mode
-			auto ModuleName = ModuleData.ModulePath.stem().wstring();
+			auto ModuleName = ModuleData.ModulePath.stem().string();
 			auto ModuleNameLc = ModuleName;
 			std::transform(ModuleName.begin(), ModuleName.end(), ModuleNameLc.begin(), std::towlower);
 
@@ -80,19 +80,19 @@ namespace FunInjector::ProcessInspector
 		return EOperationStatus::SUCCESS;
 	}
 
-	DWORD64 ProcessModuleInspector::GetModuleAddress(const std::wstring & ModuleName, EModuleBitness ModBitness) const noexcept
+	DWORD64 ProcessModuleInspector::GetModuleAddress(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		return ModuleInfo.ModuleBase;
 	}
 
-	DWORD64 ProcessModuleInspector::GetModuleSize(const std::wstring & ModuleName, EModuleBitness ModBitness) const noexcept
+	DWORD64 ProcessModuleInspector::GetModuleSize(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		return ModuleInfo.ModuleSize;
 	}
 
-	ByteBuffer ProcessModuleInspector::GetModuleBufferByName(const std::wstring & ModuleName, EModuleBitness ModBitness) const noexcept
+	ByteBuffer ProcessModuleInspector::GetModuleBufferByName(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		if (ModuleInfo.ModuleBuffer.size() > 0)
@@ -126,7 +126,7 @@ namespace FunInjector::ProcessInspector
 			//return EOperationStatus::FAIL;
 		}
 	}
-	const ModuleInformation& ProcessModuleInspector::GetModuleByName(const std::wstring& ModuleName, EModuleBitness ModBitness) const
+	const ModuleInformation& ProcessModuleInspector::GetModuleByName(const std::string& ModuleName, EModuleBitness ModBitness) const
 	{
 		if (ModBitness == EModuleBitness::AUTOMATIC)
 		{

@@ -15,12 +15,12 @@ namespace FunInjector::ProcessInspector
 		AUTOMATIC,
 	};
 
-	using ModuleMapKey = std::pair< std::wstring, EModuleBitness >;
+	using ModuleMapKey = std::pair< std::string, EModuleBitness >;
 	struct ModuleMapKeyHashFunctor
 	{
 		std::size_t operator()(ModuleMapKey const& Key) const noexcept
 		{
-			std::size_t Hash1 = std::hash<std::wstring>{}(Key.first);
+			std::size_t Hash1 = std::hash<std::string>{}(Key.first);
 			std::size_t Hash2 = std::hash<EModuleBitness>{}(Key.second);
 
 			int Seed = 290791;
@@ -65,12 +65,12 @@ namespace FunInjector::ProcessInspector
 		EOperationStatus LoadInformation() noexcept;
 
 		// Return the absolute address of a module in remote process memory
-		DWORD64 GetModuleAddress(const std::wstring &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		DWORD64 GetModuleAddress(const std::string &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
 		// Return the absolute size of the module in the remote process
-		DWORD64 GetModuleSize(const std::wstring &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		DWORD64 GetModuleSize(const std::string &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
-		ByteBuffer GetModuleBufferByName(const std::wstring& ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		ByteBuffer GetModuleBufferByName(const std::string& ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
 		inline void AttachMemoryInspector(std::shared_ptr< ProcessMemoryInspector > MemInspector)
 		{
@@ -85,7 +85,7 @@ namespace FunInjector::ProcessInspector
 	private:
 		void PrepareForModuleEnumeration() noexcept;
 
-		const ModuleInformation& GetModuleByName(const std::wstring & ModuleName, EModuleBitness ModBitness) const;
+		const ModuleInformation& GetModuleByName(const std::string & ModuleName, EModuleBitness ModBitness) const;
 
 		ByteBuffer GetModuleBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const;
 		bool IsModule64bitInternal(ByteBuffer& ModuleBuffer) const;

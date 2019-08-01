@@ -9,8 +9,12 @@ namespace FunInjector
 	{
 
 	public:
-		IProcessInjector( const DWORD ProcId, const std::wstring& DllName ) 
-			: DllToInject( DllName ), ProcessId( ProcId )
+		IProcessInjector( const DWORD ProcId, const std::wstring& DllPath ) 
+			: DllToInject(DllPath), ProcessId( ProcId )
+		{}
+
+		IProcessInjector(wil::shared_handle ProcHandle, const std::wstring& DllPath)
+			: DllToInject(DllPath), ProcessHandle(ProcHandle)
 		{}
 
 		virtual ~IProcessInjector()
@@ -29,6 +33,9 @@ namespace FunInjector
 
 		// PID of the target process, used for Handle creation
 		DWORD ProcessId = 0;
+
+		// Handle to the process we want to inject
+		wil::shared_handle ProcessHandle;
 
 		// Injection will not continue if this flag is false, will be set to true once PrepareForInjection has completed successefully
 		bool IsPrepared = false;

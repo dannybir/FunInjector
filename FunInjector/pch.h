@@ -42,7 +42,7 @@
 #include <memory>
 
 // Error handler utility
-#include "ErrorHandler.h"
+#include "ExceptionHandler.h"
 
 #include "ByteBuffer.h"
 

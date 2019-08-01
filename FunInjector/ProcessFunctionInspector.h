@@ -11,7 +11,7 @@ namespace FunInjector::ProcessInspector
 	public:
 		ProcessFunctionInspector(wil::shared_handle ProcHandle);
 
-		DWORD64 GetRemoteFunctionAddress(const std::string_view FunctionName, const std::wstring_view ModuleName);
+		DWORD64 GetRemoteFunctionAddress(const std::string_view FunctionName, const std::string_view ModuleName);
 
 		inline void AttachMemoryInspector(std::shared_ptr< ProcessMemoryInspector > MemInspector)
 		{
@@ -25,7 +25,7 @@ namespace FunInjector::ProcessInspector
 
 	private:
 		DWORD64 GetFunctionAddress(const std::string_view FunctionName, DWORD64 ModuleBaseAddress, ByteBuffer ModuleBuffer) const;
-		ByteBuffer GetBufferOfModule(const std::wstring& ModuleName) const;
+		ByteBuffer GetBufferOfModule(const std::string& ModuleName) const;
 
 
 	private:

@@ -4,14 +4,17 @@
 
 namespace FunInjector
 {
-	using namespace ErrorHandler;
+	using namespace ExceptionHandler;
 
-	FuncHookProcessInjector::FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::string& TargetFuncName,
-		const std::wstring& TargetModName)
-		: IProcessInjector( ProcessId, DllName ), TargetFunctionName(TargetFuncName), TargetModuleName(TargetModName)
-	{
-	}
+	FuncHookProcessInjector::FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllPath, const std::string& TargetFuncName,
+		const std::string& TargetModName)
+		: IProcessInjector(ProcessId, DllPath), TargetFunctionName(TargetFuncName), TargetModuleName(TargetModName)
+	{}
 
+	FuncHookProcessInjector::FuncHookProcessInjector( wil::shared_handle ProcessHandle, const std::wstring& DllPath, const std::string& TargetFuncName,
+		const std::string& TargetModName)
+		: IProcessInjector(ProcessHandle, DllPath), TargetFunctionName(TargetFuncName), TargetModuleName(TargetModName)
+	{}
 
 	FuncHookProcessInjector::~FuncHookProcessInjector()
 	{
@@ -70,7 +73,7 @@ namespace FunInjector
 		// Find some free memory and allocate big enough memory
 		SIZE_T PayloadSize = PayloadData.GetTotalDataSize() + CodeManager.GetTotalCodeSize();
 		PayloadAddress = ProcessInspector.GetInspectorByType<ProcessMemoryInspector>()->FindAndAllocateExecuteMemoryInProcess(
-			ProcessInspector.GetInspectorByType<ProcessModuleInspector>()->GetModuleAddress(L"ntdll"), PayloadSize + 0x50);
+			ProcessInspector.GetInspectorByType<ProcessModuleInspector>()->GetModuleAddress("ntdll"), PayloadSize + 0x50);
 		if (PayloadAddress == 0)
 		{
 			return EOperationStatus::FAIL;
@@ -96,7 +99,11 @@ namespace FunInjector
 
 	void FuncHookProcessInjector::PrepareProcessInspector()
 	{
-		wil::shared_handle ProcessHandle( OpenProcess(PROCESS_ALL_ACCESS, false, ProcessId) );
+		if (!ProcessHandle)
+		{
+			ProcessHandle = wil::shared_handle(OpenProcess(PROCESS_ALL_ACCESS, false, ProcessId));
+		}
+			
 		if (!ProcessHandle)
 		{
 			THROW_EXCEPTION_FORMATTED_MESSAGE( "Failed to open process handle for process id: " << ProcessId );
@@ -123,7 +130,7 @@ namespace FunInjector
 
 				// Function pointer
 				{CodeManager.TranslateOperandSize(
-				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("VirtualProtect",L"kernelbase"))}
+				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("VirtualProtect","kernelbase"))}
 			}
 		);
 
@@ -140,7 +147,7 @@ namespace FunInjector
 				
 				// Function pointer
 				{CodeManager.TranslateOperandSize(
-				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("memcpy",L"ntdll"))}
+				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("memcpy","ntdll"))}
 
 			}
 		);
@@ -148,7 +155,7 @@ namespace FunInjector
 		CodeManager.ModifyOperandsFor(L"FlushInstructionCache",
 			{
 				{CodeManager.TranslateOperandSize(
-				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("GetCurrentProcess",L"kernelbase"))},
+				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("GetCurrentProcess","kernelbase"))},
 
 				// Size of code to flush
 				{static_cast<DWORD>(USED_JUMP_INSTRUCTION_SIZE)},
@@ -157,7 +164,7 @@ namespace FunInjector
 				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
 				
 				{CodeManager.TranslateOperandSize(
-					ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("FlushInstructionCache",L"kernelbase"))}
+					ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("FlushInstructionCache","kernelbase"))}
 
 			}
 			);
@@ -166,7 +173,7 @@ namespace FunInjector
 			{
 				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"DllPath"))},
 				{CodeManager.TranslateOperandSize(
-				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("LoadLibraryW",L"kernelbase"))}
+				ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress("LoadLibraryW","kernelbase"))}
 
 			}
 		);

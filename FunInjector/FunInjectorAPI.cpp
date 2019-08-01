@@ -3,49 +3,62 @@
 
 #include "pch.h"
 #include "FunInjectorAPI.h"
-#include <tlhelp32.h>
 #include "FuncHookProcessInjector.h"
-#include "AssemblyCode.h"
+
+using namespace FunInjector;
 
 namespace FunInjector
 {
-	using namespace Literals;
-	// TODO: This is an example of a library function
-	void InjectDll()
+	void InjectUsingFunctionHook(const std::wstring_view DllPath,
+		const std::string_view TargetFunctionName,
+		const std::string_view TargetModuleName,
+		DWORD ProcessId,
+		HANDLE ProcessHandle)
 	{
-		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
-		plog::init(plog::debug, &ColorConsoleLogger);
+		HANDLE_EXCEPTION_BEGIN;
 
-		DWORD ProcessId = 0;
+		LOG_DEBUG << L"Trying to inject: " << DllPath << L", using a hook on: " << TargetModuleName << L"!" << TargetFunctionName;
 
-		PROCESSENTRY32 entry;
-		entry.dwSize = sizeof(PROCESSENTRY32);
-		HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
-
-		if (Process32First(snapshot, &entry) == TRUE)
+		std::unique_ptr<FuncHookProcessInjector> Injector;
+		if (ProcessHandle != nullptr && ProcessHandle != INVALID_HANDLE_VALUE)
 		{
-			do
-			{
-				std::wstring ProcessName(entry.szExeFile);
-				if (ProcessName == L"mspaint.exe")
-				{
-					ProcessId = entry.th32ProcessID;
-					break;
-				}
-
-			} while (Process32Next(snapshot, &entry) == TRUE);
+			Injector = 
+				std::make_unique<FuncHookProcessInjector>(wil::shared_handle(ProcessHandle), DllPath, TargetFunctionName, TargetModuleName);
+		}
+		else if (ProcessId != 0)
+		{
+			Injector =
+				std::make_unique<FuncHookProcessInjector>(ProcessId, DllPath, TargetFunctionName, TargetModuleName);
 		}
 
-		CloseHandle(snapshot);
+		auto Status = Injector->PrepareForInjection();
+		if (Status == EOperationStatus::FAIL)
+		{
+			LOG_ERROR << L"Failed to properly initialite the injector, would not continue with injection";
+			return;
+		}
 
-		ErrorHandler::ExceptionHandlerInstance::GetInstance().SetHandlerName("InjectorExceptionHandler");
-		ErrorHandler::ExceptionHandlerInstance::GetInstance().ToggleUseMessageBox(true);
-		ErrorHandler::ExceptionHandlerInstance::GetInstance().TogglePringLog(true);
+		Status = Injector->InjectDll();
+		if (Status == EOperationStatus::FAIL)
+		{
+			LOG_ERROR << L"Injecting: " << DllPath << L", has failed.";
+		}
 
-		FuncHookProcessInjector injector(ProcessId, L"C:\\Users\\DB\\Source\\Repos\\FunInjector\\FunInjector\\x64\\Debug\\TESTDLL.dll", "CreateFileW", L"kernelbase");
-		injector.PrepareForInjection();
-		injector.InjectDll();
+		HANDLE_EXCEPTION_END;
 	}
-
 }
+
+void InjectDllUsingStructure(InjectionParameters InjectParams)
+{
+	switch (InjectParams.InjectionType)
+	{
+
+	case EInjectionType::RemoteFunction:
+
+		InjectUsingFunctionHook(InjectParams.DllPath.data(), 
+			InjectParams.TargetFunctionName, InjectParams.TargetModuleName, InjectParams.ProcessId, InjectParams.ProcessHandle);
+		break;
+	};
+}
+
 

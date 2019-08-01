@@ -8,7 +8,7 @@ namespace FunInjector::ProcessInspector
 	{
 	}
 
-	DWORD64 FunInjector::ProcessInspector::ProcessFunctionInspector::GetRemoteFunctionAddress(const std::string_view FunctionName, const std::wstring_view ModuleName)
+	DWORD64 FunInjector::ProcessInspector::ProcessFunctionInspector::GetRemoteFunctionAddress(const std::string_view FunctionName, const std::string_view ModuleName)
 	{
 		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName.data());
 		auto ModuleBuffer = GetBufferOfModule(ModuleName.data());
@@ -88,7 +88,7 @@ namespace FunInjector::ProcessInspector
 		return 0;
 	}
 
-	ByteBuffer ProcessFunctionInspector::GetBufferOfModule(const std::wstring & ModuleName) const
+	ByteBuffer ProcessFunctionInspector::GetBufferOfModule(const std::string & ModuleName) const
 	{
 		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName);
 		auto ModuleSize = ProcModuleInspector->GetModuleSize(ModuleName);

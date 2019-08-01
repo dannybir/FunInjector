@@ -83,7 +83,7 @@
     <ClInclude Include="ProcessInformationInspector.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="ErrorHandler.h">
+    <ClInclude Include="ExceptionHandler.h">
       <Filter>ErrorHandler</Filter>
     </ClInclude>
   </ItemGroup>
@@ -121,5 +121,13 @@
     <ClCompile Include="ProcessInformationInspector.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="FunInjector.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

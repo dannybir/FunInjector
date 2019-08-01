@@ -15,8 +15,12 @@ namespace FunInjector
 	class FuncHookProcessInjector : public IProcessInjector
 	{
 	public:
-		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllName, const std::string& TargetFuncName,
-			const std::wstring& TargetModName);
+		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllPath, const std::string& TargetFuncName,
+			const std::string& TargetModName);
+
+		FuncHookProcessInjector( wil::shared_handle ProcessHandle, const std::wstring& DllPath, const std::string& TargetFuncName,
+			const std::string& TargetModName);
+
 		virtual ~FuncHookProcessInjector();
 
 		// When the everything is prepared, initiates the injection process
@@ -41,7 +45,7 @@ namespace FunInjector
 		std::string TargetFunctionName;
 
 		// 
-		std::wstring TargetModuleName;
+		std::string TargetModuleName;
 
 		// Address of the function we would hook to start our injection
 		DWORD64		TargetFunctionAddress;
@@ -66,7 +70,8 @@ namespace FunInjector
 		AssemblyCodeManager CodeManager;
 
 		//
-		RemoteProcessInspector< ProcessInformationInspector, ProcessMemoryInspector, ProcessModuleInspector, ProcessFunctionInspector> ProcessInspector;
+		RemoteProcessInspector< ProcessInformationInspector, 
+			ProcessMemoryInspector, ProcessModuleInspector, ProcessFunctionInspector> ProcessInspector;
 
 	};
 
