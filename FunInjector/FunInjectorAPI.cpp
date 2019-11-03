@@ -23,12 +23,12 @@ namespace FunInjector
 		if (ProcessHandle != nullptr && ProcessHandle != INVALID_HANDLE_VALUE)
 		{
 			Injector = 
-				std::make_unique<FuncHookProcessInjector>(wil::shared_handle(ProcessHandle), DllPath, TargetFunctionName, TargetModuleName);
+				std::make_unique<FuncHookProcessInjector>(wil::shared_handle(ProcessHandle), DllPath.data(), TargetFunctionName.data(), TargetModuleName.data());
 		}
 		else if (ProcessId != 0)
 		{
 			Injector =
-				std::make_unique<FuncHookProcessInjector>(ProcessId, DllPath, TargetFunctionName, TargetModuleName);
+				std::make_unique<FuncHookProcessInjector>(ProcessId, DllPath.data(), TargetFunctionName.data(), TargetModuleName.data());
 		}
 
 		auto Status = Injector->PrepareForInjection();
@@ -52,11 +52,9 @@ void InjectDllUsingStructure(InjectionParameters InjectParams)
 {
 	switch (InjectParams.InjectionType)
 	{
-
 	case EInjectionType::RemoteFunction:
-
 		InjectUsingFunctionHook(InjectParams.DllPath.data(), 
-			InjectParams.TargetFunctionName, InjectParams.TargetModuleName, InjectParams.ProcessId, InjectParams.ProcessHandle);
+			InjectParams.TargetFunctionName.data(), InjectParams.TargetModuleName.data(), InjectParams.ProcessId, InjectParams.ProcessHandle);
 		break;
 	};
 }

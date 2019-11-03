@@ -141,6 +141,7 @@ namespace FunInjector::ProcessInspector
 		}
 
 		// Throw here if not found
+		THROW_EXCEPTION_FORMATTED_MESSAGE("Not able to find module: " + ModuleName);
 	}
 
 	ByteBuffer ProcessModuleInspector::GetModuleBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const

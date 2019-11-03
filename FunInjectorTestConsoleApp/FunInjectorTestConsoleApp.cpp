@@ -19,7 +19,7 @@ int main()
 		do
 		{
 			std::wstring ProcessName(entry.szExeFile);
-			if (ProcessName == L"mspaint.exe")
+			if (ProcessName == L"flux.exe")
 			{
 				ProcessId = entry.th32ProcessID;
 				break;
@@ -31,7 +31,21 @@ int main()
 	CloseHandle(snapshot);
 
 	
-	FunInjector::InjectDll();
+	FunInjector::InjectionParameters Params;
+
+	auto DllPath = std::wstring(L"C:\\Users\\DB\\Source\\Repos\\FunInjector\\FunInjector\\Debug\\TESTDLL.dll");
+	std::copy_n( DllPath.begin(), DllPath.size(), Params.DllPath.begin());
+
+	auto FunctionName = std::string("CreateFileW");
+	std::copy_n(FunctionName.begin(), FunctionName.size(), Params.TargetFunctionName.begin());
+
+	auto ModuleName = std::string("kernelbase");
+	std::copy_n(ModuleName.begin(), ModuleName.size(), Params.TargetModuleName.begin());
+	
+	Params.ProcessId = ProcessId;
+	Params.InjectionType = FunInjector::EInjectionType::RemoteFunction;
+
+	InjectDllUsingStructure(Params);
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

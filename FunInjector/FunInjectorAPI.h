@@ -32,19 +32,13 @@ namespace FunInjector
 		HANDLE ProcessHandle = nullptr;
 
 		// This is mandatory
-		std::array< wchar_t, MaxStringLength> DllPath;
+		std::array< wchar_t, MaxStringLength> DllPath = { 0 };
 		EInjectionType InjectionType;
 
 		// Optional, depends on injection type
-		std::array< char, MaxStringLength> TargetFunctionName;
-		std::array< char, MaxStringLength> TargetModuleName;
+		std::array< char, MaxStringLength> TargetFunctionName = { 0 };
+		std::array< char, MaxStringLength> TargetModuleName = { 0 };
 	};
-
-	void InjectUsingFunctionHook(const std::wstring_view DllPath,
-		const std::string_view TargetFunctionName,
-		const std::string_view TargetModuleName,
-		DWORD ProcessId,
-		HANDLE ProcessHandle = nullptr);
 }
 
 // Chooses injection method based on the given parameters
