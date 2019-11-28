@@ -10,6 +10,8 @@ namespace FunInjector
 
 	void AssemblyInstruction::ParseInstruction(const std::initializer_list<InstructionPart>& Instruction) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto InstructionPartVisitor = [&]( auto&& Value ) 
 		{
 			using Type = std::decay_t< decltype(Value)>;
@@ -30,10 +32,14 @@ namespace FunInjector
 		{
 			std::visit(InstructionPartVisitor, InstrPart);
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 
 	void AssemblyInstruction::ModifyOperands(const std::initializer_list<std::variant<DWORD64, DWORD, WORD>>& InstOperands) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		if (Operands.size() == 0)
 		{
 			return;
@@ -45,11 +51,15 @@ namespace FunInjector
 			Operands[OperandIndex] = Operand;
 			OperandIndex++;
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 
-	int AssemblyInstruction::GetInstructionSize() const noexcept
+	auto AssemblyInstruction::GetInstructionSize() const noexcept
 	{
-		int TotalSize = OpCodeBuffer.size();
+		HANDLE_EXCEPTION_BEGIN;
+
+		auto TotalSize = OpCodeBuffer.size();
  
 		auto OperandVisitor = [&](auto&& Value)
 		{
@@ -62,10 +72,14 @@ namespace FunInjector
 		}
 		
 		return TotalSize;
+
+		HANDLE_EXCEPTION_END_RET(size_t());
 	}
 
 	ByteBuffer AssemblyInstruction::GetInstructionBuffer() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		ByteBuffer FinalBuffer;
 
 		auto OperandVisitor = [&](auto&& Value)
@@ -81,10 +95,14 @@ namespace FunInjector
 		}
 
 		return FinalBuffer;
+
+		HANDLE_EXCEPTION_END_RET(ByteBuffer());
 	}
 
 	std::wstring AssemblyInstruction::FormatIntoString() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		std::wstringstream StrStream;
 
 		auto OperandVisitor = [&](auto&& Value)
@@ -103,6 +121,8 @@ namespace FunInjector
 		StrStream << "]";
 
 		return StrStream.str();
+
+		HANDLE_EXCEPTION_END_RET(std::wstring());
 	}
 
 	AssemblyCode::AssemblyCode(const AssemblyCodeDecl& Instructions)
@@ -112,6 +132,8 @@ namespace FunInjector
 
 	void AssemblyCode::Initialize(const AssemblyCodeDecl& Instructions) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		CodeSize = 0;
 		for (const auto& Instruction : Instructions)
 		{
@@ -119,10 +141,14 @@ namespace FunInjector
 			CodeSize += CodeInstructions.back().GetInstructionSize();
 		}
 		GenerateCodeBuffer();
+
+		HANDLE_EXCEPTION_END;
 	}
 
 	void AssemblyCode::ModifyOperandsInOrder(const std::initializer_list< std::initializer_list<Operand>>& Operands) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto IterInstructions = CodeInstructions.begin();
 		for (const auto& InstructionOperands : Operands )
 		{
@@ -141,6 +167,8 @@ namespace FunInjector
 		}
 
 		GenerateCodeBuffer();
+
+		HANDLE_EXCEPTION_END;
 	}
 
 	std::wstring AssemblyCode::FormatIntoString() const
@@ -160,6 +188,8 @@ namespace FunInjector
 
 	void AssemblyCode::GenerateCodeBuffer() noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		CodeBuffer.clear();
 
 		for (const auto& Instruction : CodeInstructions)
@@ -167,6 +197,8 @@ namespace FunInjector
 			const auto& InstrBuffer = Instruction.GetInstructionBuffer();
 			CodeBuffer.insert(CodeBuffer.end(), InstrBuffer.cbegin(), InstrBuffer.cend());
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 }
 

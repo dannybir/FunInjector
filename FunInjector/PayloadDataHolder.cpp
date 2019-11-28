@@ -18,13 +18,19 @@ namespace FunInjector
 
 	};
 
-	void PayloadDataHolder::AddData(const std::wstring& Name, const DataType& Data)
+	void PayloadDataHolder::AddData(const std::wstring& Name, const DataType& Data) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		DataList.push_back( std::make_pair(Name, Data) );
+
+		HANDLE_EXCEPTION_END;
 	}
 
-	std::optional<DataType> PayloadDataHolder::GetDataByName(const std::wstring& Name) const
+	std::optional<DataType> PayloadDataHolder::GetDataByName(const std::wstring& Name) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto Iterator = std::find_if(DataList.cbegin(), DataList.cend(), [&](const auto& DataPair)
 		{
 			if (DataPair.first == Name)
@@ -43,10 +49,14 @@ namespace FunInjector
 		}
 		
 		return Iterator->second;
+
+		HANDLE_EXCEPTION_END_RET(DataType());
 	}
 
-	DWORD64 PayloadDataHolder::GetDataLocationByName(const std::wstring& Name) const
+	DWORD64 PayloadDataHolder::GetDataLocationByName(const std::wstring& Name) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		if (PayloadBaseAddress == 0)
 		{
 			// Log this
@@ -69,17 +79,25 @@ namespace FunInjector
 		}
 
 		return PayloadBaseAddress + Offset;
+
+		HANDLE_EXCEPTION_END_RET(0);
 	}
 
-	SIZE_T PayloadDataHolder::GetTotalDataSize() const
+	SIZE_T PayloadDataHolder::GetTotalDataSize() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		// Expensive, but easiest for now
 		// Will probably not be a major bottleneck
 		return ConvertDataToBuffer().size();
+
+		HANDLE_EXCEPTION_END_RET(0);
 	}
 
-	ByteBuffer PayloadDataHolder::ConvertDataToBuffer() const
+	ByteBuffer PayloadDataHolder::ConvertDataToBuffer() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		ByteBuffer FinalBuffer;
 
 		auto DataTypeConverter = [&](auto&& Value)
@@ -95,6 +113,8 @@ namespace FunInjector
 		}
 
 		return FinalBuffer;
+
+		HANDLE_EXCEPTION_END_RET(ByteBuffer());
 	}
 
 

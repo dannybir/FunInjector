@@ -51,7 +51,7 @@ namespace FunInjector
 
 		void ModifyOperands(const std::initializer_list< Operand >& InstOperands) noexcept;
 
-		int GetInstructionSize() const noexcept;
+		auto GetInstructionSize() const noexcept;
 		ByteBuffer GetInstructionBuffer() const noexcept;
 		std::wstring FormatIntoString() const noexcept;
 
@@ -73,7 +73,7 @@ namespace FunInjector
 
 		void Initialize(const AssemblyCodeDecl& Instructions) noexcept;
 
-		inline int  GetCodeSize() const noexcept
+		inline auto  GetCodeSize() const noexcept
 		{
 			return CodeSize;
 		}
@@ -114,7 +114,7 @@ namespace FunInjector
 
 		ByteBuffer CodeBuffer;
 
-		int CodeSize;
+		size_t CodeSize;
 	};
 }
 

@@ -12,6 +12,8 @@ namespace FunInjector::ProcessInspector
 
 	EOperationStatus ProcessModuleInspector::LoadInformation() noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		// To load the modules, we must first enumerate them to get more information
 		// We use the helpful psapi.dll and the functions it contains
 		// psapi.dll is a standard Windows DLL which always resides in System32/SysWow64
@@ -76,24 +78,37 @@ namespace FunInjector::ProcessInspector
 			return EOperationStatus::FAIL;
 		}
 
+
 		LOG_INFO << L"Successefully enumerated " << ProcessModuleMap.size() << L" modules";
 		return EOperationStatus::SUCCESS;
+
+		HANDLE_EXCEPTION_END_RET(EOperationStatus::FAIL);
 	}
 
 	DWORD64 ProcessModuleInspector::GetModuleAddress(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		return ModuleInfo.ModuleBase;
+
+		HANDLE_EXCEPTION_END_RET(0);
 	}
 
 	DWORD64 ProcessModuleInspector::GetModuleSize(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		return ModuleInfo.ModuleSize;
+
+		HANDLE_EXCEPTION_END_RET(0);
 	}
 
 	ByteBuffer ProcessModuleInspector::GetModuleBufferByName(const std::string & ModuleName, EModuleBitness ModBitness) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto ModuleInfo = GetModuleByName(ModuleName, ModBitness);
 		if (ModuleInfo.ModuleBuffer.size() > 0)
 		{
@@ -102,10 +117,14 @@ namespace FunInjector::ProcessInspector
 
 		// May return an empty buffer if something goes wrong
 		return ProcMemInspector->ReadBufferFromProcess(ModuleInfo.ModuleBase, static_cast<size_t>(ModuleInfo.ModuleSize));
+
+		HANDLE_EXCEPTION_END_RET(ByteBuffer());
 	}
 
 	void ProcessModuleInspector::PrepareForModuleEnumeration() noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto PsapiHandle = LoadLibrary(L"psapi.dll");
 		if (PsapiHandle == NULL)
 		{
@@ -125,6 +144,8 @@ namespace FunInjector::ProcessInspector
 			LOG_ERROR << L"Failed to load a PSAPI function for process module enumeration, cannot continue enumeration";
 			//return EOperationStatus::FAIL;
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 	const ModuleInformation& ProcessModuleInspector::GetModuleByName(const std::string& ModuleName, EModuleBitness ModBitness) const
 	{
@@ -136,7 +157,7 @@ namespace FunInjector::ProcessInspector
 		const auto& FoundMapIter = ProcessModuleMap.find(std::make_pair(ModuleName, ModBitness));
 		if (FoundMapIter != ProcessModuleMap.cend())
 		{
-			LOG_DEBUG << L"Found address: " << std::hex << FoundMapIter->second.ModuleBase << L" for module: " << ModuleName;
+			LOG_VERBOSE << L"Found address: " << std::hex << FoundMapIter->second.ModuleBase << L" for module: " << ModuleName;
 			return FoundMapIter->second;
 		}
 

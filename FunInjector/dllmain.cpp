@@ -14,8 +14,11 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 		ExceptionHandler::ExceptionHandlerInstance::GetInstance().AddOnExceptionAction("LogOnException",
 			[](auto Message) { LOG_ERROR << Message; });
-		ExceptionHandler::ExceptionHandlerInstance::GetInstance().AddOnExceptionAction("MessageBoxOnException",
-			[](auto Message) { MessageBoxA(nullptr, Message.data(), "Exception Thrown!", MB_OK); });
+		//ExceptionHandler::ExceptionHandlerInstance::GetInstance().AddOnExceptionAction("MessageBoxOnException",
+			//[](auto Message) { MessageBoxA(nullptr, Message.data(), "Exception Thrown!", MB_OK); });
+
+		static plog::RollingFileAppender<plog::TxtFormatter> FileLogger(L"D:/Tester/InjectorLog.log", 100000000, 100);
+		plog::init(plog::debug, &FileLogger);
 
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
 		plog::init(plog::debug, &ColorConsoleLogger);

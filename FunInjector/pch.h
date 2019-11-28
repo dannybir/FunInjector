@@ -22,6 +22,7 @@
 // Logger
 #include <plog/Log.h>
 #include <plog/Appenders/ColorConsoleAppender.h>
+#include <plog/Appenders/RollingFileAppender.h>
 
 // Strings
 #include <string>

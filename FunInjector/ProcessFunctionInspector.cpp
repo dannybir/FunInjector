@@ -13,6 +13,12 @@ namespace FunInjector::ProcessInspector
 		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName.data());
 		auto ModuleBuffer = GetBufferOfModule(ModuleName.data());
 
+		if (ModuleBuffer.size() == 0)
+		{
+			LOG_ERROR << "Failed to retrieve a buffer of module: " << ModuleName.data() << L", process may have terminated or module unloaded, returning 0";
+			return 0;
+		}
+
 		return GetFunctionAddress(FunctionName, ModuleAddress, ModuleBuffer);
 	}
 
@@ -92,6 +98,11 @@ namespace FunInjector::ProcessInspector
 	{
 		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName);
 		auto ModuleSize = ProcModuleInspector->GetModuleSize(ModuleName);
+
+		if (ModuleAddress == 0 || ModuleSize == 0)
+		{
+			return ByteBuffer();
+		}
 
 		// May return an empty buffer if something goes wrong
 		return ProcMemInspector->ReadBufferFromProcess(ModuleAddress, static_cast<size_t>(ModuleSize));

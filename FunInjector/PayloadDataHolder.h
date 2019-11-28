@@ -12,16 +12,25 @@ namespace FunInjector
 		PayloadDataHolder() = default;
 		PayloadDataHolder(DWORD64 BaseAddress) : PayloadBaseAddress(BaseAddress) {}
 
-		void AddData(const std::wstring& Name, const DataType& Data);
+		// Will add a data item to the list of items
+		void AddData(const std::wstring& Name, const DataType& Data) noexcept;
 
-		std::optional<DataType> GetDataByName(const std::wstring& Name) const;
+		// Return a data type by its stored name, if not found, returns an empty optional
+		std::optional<DataType> GetDataByName(const std::wstring& Name) const noexcept;
 
-		DWORD64 GetDataLocationByName(const std::wstring& Name) const;
+		// Returns a location of the data recognized by its name
+		// Pay attention that this address will be real only when
+		// the base address is set to a real address
+		DWORD64 GetDataLocationByName(const std::wstring& Name) const noexcept;
 
-		SIZE_T GetTotalDataSize() const;
+		// Total size in bytes of all the data currently in this payload
+		SIZE_T GetTotalDataSize() const noexcept;
 
-		ByteBuffer ConvertDataToBuffer() const;
+		// Converts all the data inside this payload to one big buffer
+		// which can then be written to the process
+		ByteBuffer ConvertDataToBuffer() const noexcept;
 
+		// 
 		inline void SetBaseAddress(DWORD64 BaseAddress)
 		{
 			PayloadBaseAddress = BaseAddress;
@@ -31,8 +40,12 @@ namespace FunInjector
 		SIZE_T GetDataTypeSize(const DataType& Data) const;
 
 	private:
+		// A list of objects with names that can be injected as payload to the target process
+		// The target process injected assembly code can use data items from the payload
+		// for various operations
 		std::vector< std::pair< std::wstring, DataType >> DataList;
 
+		// The base address where this payload data will sit in the target process
 		DWORD64 PayloadBaseAddress = 0;
 	};
 }

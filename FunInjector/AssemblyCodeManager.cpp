@@ -53,18 +53,23 @@ namespace FunInjector
 		return Iterator;
 	}
 
-	void AssemblyCodeManager::AddAssemblyCode(const std::wstring& CodeName, ECodeType CodeType)
+	void AssemblyCodeManager::AddAssemblyCode(const std::wstring& CodeName, ECodeType CodeType) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
 
 		RemoteAssemblyCode RAssemblyCode;
 		RAssemblyCode.Code = CodeGenerator.GeneratorMap[CodeType]();
 		RAssemblyCode.RemoteAddress = 0;
 
 		AssemblyCodeList.push_back( std::make_pair(CodeName, RAssemblyCode));
+
+		HANDLE_EXCEPTION_END;
 	}
 
-	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeCopy(const std::wstring& CodeName) const
+	std::optional<RemoteAssemblyCode> AssemblyCodeManager::GetAssemblyCodeCopy(const std::wstring& CodeName) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto CodeIterator = GetAssemblyCodeByName(CodeName);
 		if (CodeIterator != std::end(AssemblyCodeList))
 		{
@@ -74,22 +79,30 @@ namespace FunInjector
 		{
 			return std::nullopt;
 		}
+
+		HANDLE_EXCEPTION_END_RET(std::nullopt);
 	}
 
 	// TODO: Cache this
-	void AssemblyCodeManager::SetupCodeAddresses(DWORD64 BaseAddress)
+	void AssemblyCodeManager::SetupCodeAddresses(DWORD64 BaseAddress) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		DWORD64 Offset = 0;
 		for (auto& [CodeName, RemoteCode] : AssemblyCodeList)
 		{
 			RemoteCode.RemoteAddress = BaseAddress + Offset;
 			Offset += RemoteCode.Code.GetCodeSize();
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 
 	// TODO: Cache this
-	SIZE_T AssemblyCodeManager::GetTotalCodeSize() const
+	SIZE_T AssemblyCodeManager::GetTotalCodeSize() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		SIZE_T TotalSize = 0;
 		for (const auto&[CodeName, RemoteCode] : AssemblyCodeList)
 		{
@@ -98,21 +111,27 @@ namespace FunInjector
 
 		return TotalSize;
 
+		HANDLE_EXCEPTION_END_RET(0);
 	}
 
-	DWORD64 AssemblyCodeManager::GetCodeMemoryLocationFor(const std::wstring & CodeName) const
+	DWORD64 AssemblyCodeManager::GetCodeMemoryLocationFor(const std::wstring & CodeName) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto CodeIterator = GetAssemblyCodeByName(CodeName);
 		if (CodeIterator != std::end(AssemblyCodeList))
 		{
 			return CodeIterator->second.RemoteAddress;
 		}
 
+		HANDLE_EXCEPTION_END;
 		return 0;
 	}
 
-	ByteBuffer AssemblyCodeManager::GetAllCodeBuffer() const
+	ByteBuffer AssemblyCodeManager::GetAllCodeBuffer() const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		ByteBuffer FinalBuffer;
 
 		for (const auto& RemoteCode : AssemblyCodeList)
@@ -121,19 +140,28 @@ namespace FunInjector
 		}
 
 		return FinalBuffer;
+
+		HANDLE_EXCEPTION_END_RET(ByteBuffer());
 	}
 
-	void AssemblyCodeManager::ModifyOperandsFor(const std::wstring& CodeName, const std::initializer_list<std::initializer_list<Operand>>& Operands)
+	void AssemblyCodeManager::ModifyOperandsFor(const std::wstring& CodeName, 
+		const std::initializer_list<std::initializer_list<Operand>>& Operands) noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto ListIterator = GetAssemblyCodeByName(CodeName);
 		if (ListIterator != AssemblyCodeList.end())
 		{
 			ListIterator->second.Code.ModifyOperandsInOrder(Operands);
 		}
+
+		HANDLE_EXCEPTION_END;
 	}
 
 	Operand AssemblyCodeManager::TranslateOperandSize(Operand OperandVal) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		if (ManagerBitnessMode == ECodeBitnessMode::X86)
 		{
 			if (OperandVal.index() == 0)
@@ -143,6 +171,8 @@ namespace FunInjector
 		}
 
 		return OperandVal;
+
+		HANDLE_EXCEPTION_END_RET(Operand());
 	}
 
 }

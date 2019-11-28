@@ -65,6 +65,7 @@ namespace FunInjector
 		TargetFunctionAddress = ProcessInspector.GetInspectorByType<ProcessFunctionInspector>()->GetRemoteFunctionAddress(TargetFunctionName, TargetModuleName);
 		if (TargetFunctionAddress == 0)
 		{
+			LOG_ERROR << L"Failed to retrieve the address of the target function: " << TargetFunctionName;
 			return EOperationStatus::FAIL;
 		}
 
@@ -93,7 +94,6 @@ namespace FunInjector
 		PrepareAssemblyCodePayload();
 
 		HANDLE_EXCEPTION_END_RET( EOperationStatus::FAIL );
-
 		return EOperationStatus::SUCCESS;
 	}
 
@@ -114,6 +114,8 @@ namespace FunInjector
 
 	EOperationStatus FuncHookProcessInjector::PrepareAssemblyCodePayload() noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		CodeManager.ModifyOperandsFor(L"RemoveProtection",
 			{
 				// lpflOldProtect
@@ -188,10 +190,13 @@ namespace FunInjector
 		AppendBufferToBuffer(PayloadBuffer, CodeManager.GetAllCodeBuffer());
 
 		return EOperationStatus::SUCCESS;
+		HANDLE_EXCEPTION_END_RET(EOperationStatus::FAIL);
 	}
 
 	EOperationStatus FuncHookProcessInjector::PrepareDataPayload() noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		// First we write the path to the dll at the beginning of the payload address
 		PayloadData.AddData(L"DllPath", DllToInject);
 		
@@ -204,6 +209,7 @@ namespace FunInjector
 		AppendBufferToBuffer(PayloadBuffer, PayloadData.ConvertDataToBuffer());
 
 		return EOperationStatus::SUCCESS;
+		HANDLE_EXCEPTION_END_RET(EOperationStatus::FAIL);
 	}
 }
 

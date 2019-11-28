@@ -9,7 +9,7 @@ using namespace FunInjector;
 
 namespace FunInjector
 {
-	void InjectUsingFunctionHook(const std::wstring_view DllPath,
+	EOperationStatus InjectUsingFunctionHook(const std::wstring_view DllPath,
 		const std::string_view TargetFunctionName,
 		const std::string_view TargetModuleName,
 		DWORD ProcessId,
@@ -35,7 +35,7 @@ namespace FunInjector
 		if (Status == EOperationStatus::FAIL)
 		{
 			LOG_ERROR << L"Failed to properly initialite the injector, would not continue with injection";
-			return;
+			return Status;
 		}
 
 		Status = Injector->InjectDll();
@@ -44,19 +44,24 @@ namespace FunInjector
 			LOG_ERROR << L"Injecting: " << DllPath << L", has failed.";
 		}
 
-		HANDLE_EXCEPTION_END;
+		return Status;
+
+		HANDLE_EXCEPTION_END_RET(EOperationStatus::FAIL);
 	}
 }
 
-void InjectDllUsingStructure(InjectionParameters InjectParams)
+int InjectDllUsingStructure(InjectionParameters InjectParams)
 {
 	switch (InjectParams.InjectionType)
 	{
 	case EInjectionType::RemoteFunction:
-		InjectUsingFunctionHook(InjectParams.DllPath.data(), 
-			InjectParams.TargetFunctionName.data(), InjectParams.TargetModuleName.data(), InjectParams.ProcessId, InjectParams.ProcessHandle);
+		return std::underlying_type_t<EOperationStatus>(
+			InjectUsingFunctionHook(InjectParams.DllPath.data(), InjectParams.TargetFunctionName.data(), 
+				InjectParams.TargetModuleName.data(), InjectParams.ProcessId, InjectParams.ProcessHandle));
 		break;
 	};
+
+	return -1;
 }
 
 

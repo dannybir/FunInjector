@@ -4,6 +4,7 @@
 #include <string_view>
 #include <array>
 
+
 #ifdef FUNINJECTOR_EXPORTS
 #define FUNINJECTOR_EXPORTS __declspec(dllexport) 
 #else
@@ -12,9 +13,9 @@
 
 namespace FunInjector
 {
-	enum class EOperationStatus
+	enum class EOperationStatus : uint8_t
 	{
-		SUCCESS,
+		SUCCESS = 0,
 		FAIL,
 	};
 
@@ -39,7 +40,8 @@ namespace FunInjector
 		std::array< char, MaxStringLength> TargetFunctionName = { 0 };
 		std::array< char, MaxStringLength> TargetModuleName = { 0 };
 	};
+
 }
 
 // Chooses injection method based on the given parameters
-FUNINJECTOR_EXPORTS void InjectDllUsingStructure(FunInjector::InjectionParameters InjectParams);
+FUNINJECTOR_EXPORTS int InjectDllUsingStructure(FunInjector::InjectionParameters InjectParams);
