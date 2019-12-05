@@ -41,7 +41,17 @@ namespace FunInjector
 		std::array< char, MaxStringLength> TargetModuleName = { 0 };
 	};
 
+	EOperationStatus InjectUsingFunctionHook(const std::wstring_view DllPath,
+		const std::string_view TargetFunctionName,
+		const std::string_view TargetModuleName,
+		HANDLE ProcessHandle,
+		DWORD ProcessId = 0 ) noexcept;
 }
 
 // Chooses injection method based on the given parameters
+// Can be used for multiple injection types, with dynamic or static linking
 FUNINJECTOR_EXPORTS int InjectDllUsingStructure(FunInjector::InjectionParameters InjectParams);
+
+// Will inject specifically using a remote function hook and assembly code injection method
+FUNINJECTOR_EXPORTS int InjectWithFunctionHook(HANDLE ProcessHandle, 
+	const wchar_t* DllPath, const char* TargetFunctionName, const char* TargetModuleName);

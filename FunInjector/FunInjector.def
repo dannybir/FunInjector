@@ -1,3 +1,4 @@
 LIBRARY FunInjector
 EXPORTS
 	InjectDllUsingStructure
+	InjectWithFunctionHook

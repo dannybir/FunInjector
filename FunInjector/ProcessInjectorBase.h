@@ -1,31 +1,30 @@
 #pragma once
 
 #include "pch.h"
-#include "ProcessUtils.h"
 
 namespace FunInjector
 {
-	class IProcessInjector
+	class ProcessInjectorBase
 	{
 
 	public:
-		IProcessInjector( const DWORD ProcId, const std::wstring& DllPath ) 
+		ProcessInjectorBase( const DWORD ProcId, const std::wstring& DllPath )
 			: DllToInject(DllPath), ProcessId( ProcId )
 		{}
 
-		IProcessInjector(wil::shared_handle ProcHandle, const std::wstring& DllPath)
+		ProcessInjectorBase(wil::shared_handle ProcHandle, const std::wstring& DllPath)
 			: DllToInject(DllPath), ProcessHandle(ProcHandle)
 		{}
 
-		virtual ~IProcessInjector()
+		virtual ~ProcessInjectorBase()
 		{}
 
 		// When the everything is prepared, initiates the injection process
 		// Injection may be performed differently depending on the implementation of certain techniques
-		virtual EOperationStatus InjectDll() = 0;	
+		virtual EOperationStatus InjectDll() noexcept = 0;	
 
 		// Initialies all needed buffers and addresses to start the injection process
-		virtual EOperationStatus PrepareForInjection() = 0;
+		virtual EOperationStatus PrepareForInjection() noexcept = 0;
 
 	protected:
 		// Full path of the DLL we would like to inject to the target process
@@ -36,9 +35,6 @@ namespace FunInjector
 
 		// Handle to the process we want to inject
 		wil::shared_handle ProcessHandle;
-
-		// Injection will not continue if this flag is false, will be set to true once PrepareForInjection has completed successefully
-		bool IsPrepared = false;
 	};
 }
 

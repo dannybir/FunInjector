@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IProcessInjector.h"
+#include "ProcessInjectorBase.h"
 #include "AssemblyCodeManager.h"
 #include "PayloadDataHolder.h"
 #include "RemoteProcessInspector.h"
@@ -9,16 +9,21 @@ namespace FunInjector
 {
 	using namespace FunInjector::ProcessInspector;
 
-	// We hardcode this for now, should probably have a better way to define this
-	constexpr auto USED_JUMP_INSTRUCTION_SIZE = 0x8;
+	// Tests have shown that 15 bytes should be more than enough to backup
+	// the target function
+	constexpr auto TARGET_FUNCTION_BACKUP_SIZE = 0xF;
 
-	class FuncHookProcessInjector : public IProcessInjector
+	class FuncHookProcessInjector : public ProcessInjectorBase
 	{
 	public:
-		FuncHookProcessInjector(const DWORD ProcessId, const std::wstring& DllPath, const std::string& TargetFuncName,
+		FuncHookProcessInjector(const DWORD ProcessId, 
+			const std::wstring& DllPath, 
+			const std::string& TargetFuncName,
 			const std::string& TargetModName);
 
-		FuncHookProcessInjector( wil::shared_handle ProcessHandle, const std::wstring& DllPath, const std::string& TargetFuncName,
+		FuncHookProcessInjector( wil::shared_handle ProcessHandle, 
+			const std::wstring& DllPath, 
+			const std::string& TargetFuncName,
 			const std::string& TargetModName);
 
 		virtual ~FuncHookProcessInjector();
@@ -37,8 +42,8 @@ namespace FunInjector
 		void PrepareProcessInspector();
 
 	private:
-		EOperationStatus PrepareAssemblyCodePayload() noexcept;
-		EOperationStatus PrepareDataPayload() noexcept;
+		void PrepareAssemblyCodePayload();
+		void PrepareDataPayload();
 
 	private:
 		// Name of the victim function we would hook to initiate the loading of our dll
@@ -53,9 +58,6 @@ namespace FunInjector
 		// Address in the remote process of the start of the payload buffer code
 		DWORD64		PayloadAddress;
 
-		//
-		SIZE_T		TargetFunctionOverwriteSize;
-
 		// Buffer for the jump instruction which will be used to hook the target function
 		ByteBuffer	JmpHookBuffer;
 
@@ -63,17 +65,19 @@ namespace FunInjector
 		// into the remote process, will be written to PayloadAddress address in the remote process
 		ByteBuffer	PayloadBuffer;
 
-		//
+		// Contains and manages data objects that the payload assembly may need to use
 		PayloadDataHolder PayloadData;
 
-		//
+		// Contains and manages all assembly code that is part of the payload
 		AssemblyCodeManager CodeManager;
 
-		//
+		// This remote proc inspector is used to query,read,write data to the process
 		RemoteProcessInspector< ProcessInformationInspector, 
 			ProcessMemoryInspector, ProcessModuleInspector, ProcessFunctionInspector> ProcessInspector;
 
 	};
 
 }
+// This is just to have shorter code, convinience?
+#define GET_INSPECTOR(Type) ProcessInspector.GetInspectorByType<Type>()
 

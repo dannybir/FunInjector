@@ -11,6 +11,8 @@ namespace FunInjector::ProcessInspector
 
 	ByteBuffer ProcessMemoryInspector::ReadBufferFromProcess(DWORD64 ReadAddress, SIZE_T ReadSize) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		// This is the buffer we will read into, pre-allocate with supplied size
 		ByteBuffer ReadBuffer(ReadSize);
 		SIZE_T ActualReadSize = 0;
@@ -31,11 +33,14 @@ namespace FunInjector::ProcessInspector
 		LOG_ERROR << L"Failed to read: " << ReadSize << L" bytes from from memory address: " << std::hex << ReadAddress
 			<< L", there might be an issue with access qualifiers for the process handle, will return an empty buffer, Error=" << GetLastError();
 
+		HANDLE_EXCEPTION_END;
 		return ByteBuffer();
 	}
 
 	EOperationStatus ProcessMemoryInspector::WriteBufferToProcess( const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		// This is the buffer we will read into, pre-allocate with supplied size
 		SIZE_T ActualWriteSize = 0;
 
@@ -56,11 +61,15 @@ namespace FunInjector::ProcessInspector
 		LOG_ERROR << L"Failed to write: " << WriteSize << L" bytes from to memory address: " << std::hex << WriteAddress
 			<< L", there might be an issue with access qualifiers for the process handle, consider this operation as failed, Error=" << GetLastError();
 
+		HANDLE_EXCEPTION_END;
+
 		return EOperationStatus::FAIL;
 	}
 
 	DWORD64 ProcessMemoryInspector::FindFreeMemoryRegion(DWORD64 ScanLocation, SIZE_T FreeMemorySize, bool ScanDown) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		PVOID ScanLocationPtr = reinterpret_cast<PVOID>(ScanLocation);
 
 		// Get information about the memory layout at the start of the scan location
@@ -94,10 +103,15 @@ namespace FunInjector::ProcessInspector
 
 		LOG_DEBUG << L"Found a free memory region with size: " << MemInfo.RegionSize << L", in location: " << std::hex << MemInfo.BaseAddress;
 		return reinterpret_cast<DWORD64>(ScanLocationPtr);
+
+		HANDLE_EXCEPTION_END;
+		return 0;
 	}
 
 	DWORD64 ProcessMemoryInspector::AllocateMemoryInProcessForExecution(DWORD64 MemoryAddress, SIZE_T AllocationSize) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		PVOID AllocationBase = VirtualAllocEx(ProcessHandle.get(), reinterpret_cast<PVOID>(MemoryAddress), AllocationSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 		if (AllocationBase != nullptr)
 		{
@@ -134,10 +148,15 @@ namespace FunInjector::ProcessInspector
 			<< std::hex << MemoryAddress << L" with PAGE_EXECUTE_READWRITE protection";
 
 		return reinterpret_cast<DWORD64>(AllocationBase);
+
+		HANDLE_EXCEPTION_END;
+		return 0;
 	}
 
 	DWORD64 ProcessMemoryInspector::FindAndAllocateExecuteMemoryInProcess(DWORD64 BaseSearchAddress, SIZE_T AllocSize) const noexcept
 	{
+		HANDLE_EXCEPTION_BEGIN;
+
 		auto FreeMemoryRegionAddress = BaseSearchAddress;
 		DWORD64 AllocationAddress = 0;
 
@@ -165,6 +184,9 @@ namespace FunInjector::ProcessInspector
 		} while (FreeMemoryRegionAddress != 0 && AllocationAddress == 0);
 
 		return AllocationAddress;
+
+		HANDLE_EXCEPTION_END;
+		return 0;
 	}
 }
 

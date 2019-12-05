@@ -3,6 +3,7 @@
 
 // For std::to_wllower
 #include <cwctype>
+#include <cctype>
 
 namespace FunInjector::ProcessInspector
 {
@@ -61,13 +62,19 @@ namespace FunInjector::ProcessInspector
 			ModuleData.ModulePath = ModulePathname.data();
 
 			// Determine bitness of the module by reading the PE header of the module
-			ModuleData.ModuleBuffer = GetModuleBuffer(ModuleData.ModuleBase, ModuleData.ModuleSize);
+			ModuleData.ModuleBuffer = ReadModuleToBuffer(ModuleData.ModuleBase, ModuleData.ModuleSize);
 			ModuleData.ModuleBitness = (IsModule64bitInternal(ModuleData.ModuleBuffer)) ? EModuleBitness::BIT_64 : EModuleBitness::BIT_32;
 
 			// Put the modulename into lowercase mode
 			auto ModuleName = ModuleData.ModulePath.stem().string();
 			auto ModuleNameLc = ModuleName;
-			std::transform(ModuleName.begin(), ModuleName.end(), ModuleNameLc.begin(), std::towlower);
+
+			std::transform(ModuleName.begin(), ModuleName.end(), ModuleNameLc.begin(),
+				[](auto Character)
+				{
+					return std::tolower(Character);
+				});
+			//std::transform(ModuleName.begin(), ModuleName.end(), ModuleNameLc.begin(), std::towlower);
 
 			ProcessModuleMap.insert(std::make_pair( std::make_pair(ModuleNameLc, ModuleData.ModuleBitness), ModuleData));
 		}
@@ -121,16 +128,13 @@ namespace FunInjector::ProcessInspector
 		HANDLE_EXCEPTION_END_RET(ByteBuffer());
 	}
 
-	void ProcessModuleInspector::PrepareForModuleEnumeration() noexcept
+	void ProcessModuleInspector::PrepareForModuleEnumeration()
 	{
-		HANDLE_EXCEPTION_BEGIN;
-
 		auto PsapiHandle = LoadLibrary(L"psapi.dll");
 		if (PsapiHandle == NULL)
 		{
-			LOG_ERROR << L"Failed to load PSAPI.dll, cannot properly enumerate remote process modules";
 			// We cannot continue enumeration without a handle to psapi
-			//return EOperationStatus::FAIL;
+			THROW_EXCEPTION_FORMATTED_MESSAGE(L"Failed to load PSAPI.dll, cannot properly enumerate remote process modules");
 		}
 
 		// Just get addresses to the following functions, if any of them fails we cannot continue
@@ -141,14 +145,15 @@ namespace FunInjector::ProcessInspector
 
 		if (GetModuleInformationPtr == nullptr || GetModuleBaseNameWPtr == nullptr || GetModuleFilenameExWPtr == nullptr || EnumProcessModulesExPtr == nullptr)
 		{
-			LOG_ERROR << L"Failed to load a PSAPI function for process module enumeration, cannot continue enumeration";
-			//return EOperationStatus::FAIL;
+			THROW_EXCEPTION_FORMATTED_MESSAGE(L"Failed to load a PSAPI function for process module enumeration, cannot continue enumeration");
 		}
-
-		HANDLE_EXCEPTION_END;
 	}
+
 	const ModuleInformation& ProcessModuleInspector::GetModuleByName(const std::string& ModuleName, EModuleBitness ModBitness) const
 	{
+		// Determine the bitness of the module by the bitness of the process
+		// Usually we;ll have 64bit modules in a 64bit process and vice verca
+		// Obvioiusly, this is not always true, for example: wow64.dll in a 32bit process on a 64bit OS
 		if (ModBitness == EModuleBitness::AUTOMATIC)
 		{
 			ModBitness = (ProcInfoInspector->IsProcess64Bit) ? EModuleBitness::BIT_64 : EModuleBitness::BIT_32;
@@ -165,7 +170,7 @@ namespace FunInjector::ProcessInspector
 		THROW_EXCEPTION_FORMATTED_MESSAGE("Not able to find module: " + ModuleName);
 	}
 
-	ByteBuffer ProcessModuleInspector::GetModuleBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const
+	ByteBuffer ProcessModuleInspector::ReadModuleToBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const
 	{
 		// May return an empty buffer if something goes wrong
 		return ProcMemInspector->ReadBufferFromProcess(ModuleBaseAddress, static_cast<size_t>(ModuleSize));

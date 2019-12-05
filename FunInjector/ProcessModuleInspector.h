@@ -65,12 +65,16 @@ namespace FunInjector::ProcessInspector
 		EOperationStatus LoadInformation() noexcept;
 
 		// Return the absolute address of a module in remote process memory
-		DWORD64 GetModuleAddress(const std::string &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		DWORD64 GetModuleAddress(const std::string &ModuleName, 
+			EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
 		// Return the absolute size of the module in the remote process
-		DWORD64 GetModuleSize(const std::string &ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		DWORD64 GetModuleSize(const std::string &ModuleName, 
+			EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
-		ByteBuffer GetModuleBufferByName(const std::string& ModuleName, EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
+		// Retrieves a buffer containing the module image, if exists
+		ByteBuffer GetModuleBufferByName(const std::string& ModuleName, 
+			EModuleBitness ModBitness = EModuleBitness::AUTOMATIC) const noexcept;
 
 		inline void AttachMemoryInspector(std::shared_ptr< ProcessMemoryInspector > MemInspector)
 		{
@@ -83,11 +87,17 @@ namespace FunInjector::ProcessInspector
 		}
 
 	private:
-		void PrepareForModuleEnumeration() noexcept;
+		// Loads up the functions for enumeration with GetProcAddress
+		void PrepareForModuleEnumeration();
 
+		// Tries to return a reference to a module information structure
+		// Throws an exception if it fails
 		const ModuleInformation& GetModuleByName(const std::string & ModuleName, EModuleBitness ModBitness) const;
 
-		ByteBuffer GetModuleBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const;
+		// Reads a module from the target process to a buffer
+		ByteBuffer ReadModuleToBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const;
+
+		// Using a buffer containing the module, determines if its a 64bit module
 		bool IsModule64bitInternal(ByteBuffer& ModuleBuffer) const;
 
 	private:
@@ -97,7 +107,8 @@ namespace FunInjector::ProcessInspector
 		FGetModuleBaseNameWPtr	 GetModuleBaseNameWPtr = nullptr;
 		FGetModuleInformationPtr GetModuleInformationPtr = nullptr;
 
-		// An array of IMAGEHLP_MODULEW64 structures, which contain important information about each module
+		// An array of ModuleInformation structures, which contain important information about each module
+		// The key is a combination of the module name and its bitness
 		std::unordered_map< ModuleMapKey, ModuleInformation, ModuleMapKeyHashFunctor > ProcessModuleMap;
 
 		// Reference to a process handle, will enumerate handles from that process

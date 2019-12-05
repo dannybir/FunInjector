@@ -6,6 +6,10 @@
 
 namespace FunInjector::ProcessInspector
 {
+	// An aggregetor class containing all possible inspectors
+	// The injector would usually need to use all the inspectors
+	// Also, some inspectors depends on other to exist
+	// A RemoteProcessInspector is unique up to the process handle being used
 	template <typename ... InspectorTypes >
 	class RemoteProcessInspector
 	{
@@ -32,6 +36,8 @@ namespace FunInjector::ProcessInspector
 
 			HANDLE_EXCEPTION_END(EOperationStatus::FAIL);
 
+			LOG_DEBUG << L"Successefuly created all process inspectors, they are now ready to use for handle: " 
+				<< std::hex << ProcessHandle.get();
 			return EOperationStatus::SUCCESS;
 		}
 
@@ -45,5 +51,6 @@ namespace FunInjector::ProcessInspector
 		std::tuple<std::shared_ptr<InspectorTypes>...> Inspectors;
 	};
 }
+
 
 

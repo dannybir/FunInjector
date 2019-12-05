@@ -38,14 +38,8 @@
     <ClInclude Include="ByteBuffer.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="IProcessInjector.h">
-      <Filter>Injectors</Filter>
-    </ClInclude>
     <ClInclude Include="FuncHookProcessInjector.h">
       <Filter>Injectors</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils.h">
-      <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="AssemblyCode.h">
       <Filter>AssemblyCode</Filter>
@@ -65,9 +59,6 @@
     <ClInclude Include="PayloadDataHolder.h">
       <Filter>PayloadData</Filter>
     </ClInclude>
-    <ClInclude Include="ProcessUtils.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
     <ClInclude Include="RemoteProcessInspector.h">
       <Filter>Utils</Filter>
     </ClInclude>
@@ -85,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="ExceptionHandler.h">
       <Filter>ErrorHandler</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessInjectorBase.h">
+      <Filter>Injectors</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -105,9 +99,6 @@
     </ClCompile>
     <ClCompile Include="PayloadDataHolder.cpp">
       <Filter>PayloadData</Filter>
-    </ClCompile>
-    <ClCompile Include="ProcessInformationUtils.cpp">
-      <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="ProcessModuleInspector.cpp">
       <Filter>Utils</Filter>

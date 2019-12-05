@@ -176,16 +176,14 @@
     <ClInclude Include="FunInjectorAPI.h" />
     <ClInclude Include="IAssemblyCodeGenerator.h" />
     <ClInclude Include="ExceptionHandler.h" />
-    <ClInclude Include="IProcessInjector.h" />
+    <ClInclude Include="ProcessInjectorBase.h" />
     <ClInclude Include="PayloadDataHolder.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ProcessFunctionInspector.h" />
     <ClInclude Include="ProcessInformationInspector.h" />
     <ClInclude Include="ProcessMemoryInspector.h" />
     <ClInclude Include="ProcessModuleInspector.h" />
-    <ClInclude Include="ProcessUtils.h" />
     <ClInclude Include="RemoteProcessInspector.h" />
-    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyCode.cpp" />
@@ -203,7 +201,6 @@
     <ClCompile Include="ProcessFunctionInspector.cpp" />
     <ClCompile Include="ProcessInformationInspector.cpp" />
     <ClCompile Include="ProcessMemoryInspector.cpp" />
-    <ClCompile Include="ProcessInformationUtils.cpp" />
     <ClCompile Include="ProcessModuleInspector.cpp" />
   </ItemGroup>
   <ItemGroup>

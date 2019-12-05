@@ -28,5 +28,7 @@ int main()
 
 	std::this_thread::sleep_for(3s);
 
+	CreateFileW(L"", 0, 0, nullptr, 0, 0, nullptr);
+
 	return 0;
 }

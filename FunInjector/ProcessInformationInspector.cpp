@@ -14,11 +14,6 @@ namespace FunInjector::ProcessInspector
 		return EOperationStatus::SUCCESS;
 	}
 
-	std::filesystem::path ProcessInformationInspector::GetProcessPath() const
-	{
-		return std::filesystem::path();
-	}
-
 	bool ProcessInformationInspector::DetermineIsProcess64Bit() const
 	{
 		// First check the OS bitness, if the bitness is 32bit, the process must be 32bit
