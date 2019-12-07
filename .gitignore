@@ -330,6 +330,6 @@ ASALocalRun/
 .mfractor/
 
 # Dont upload the tests yet
-FunInjectorTestConsoleApp
-TestDll
-TestProcess
+FunInjectorTestConsoleApp/
+TestDll/
+TestProcess/
