@@ -1,8 +1,9 @@
-// FunInjectorTestConsoleApp.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 
 #include "../FunInjector/FunInjectorAPI.h"
+
+// Command line options parser
+#include <cxxopts.hpp>
+
 #include <Windows.h>
 
 #include <wil/resource.h>
@@ -100,48 +101,83 @@ bool TryRunInjectTest(const std::filesystem::path& TesterBinariesPath, bool Is64
 	return true;
 }
 
-int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+int main(int argc, char* argv[])
 {
-	plog::RollingFileAppender<plog::TxtFormatter> FileLogger(L"D:/Tester/TesterLog.log", 100000000, 100);
-	plog::init(plog::debug, &FileLogger);
-
-	static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
-	plog::init(plog::verbose, &ColorConsoleLogger);
-
-	/*
-	LOG_INFO << L"Starting 32bit injection tester!";
-	
-	int FailCounter = 0;
-	
-	for (int i = 0; i < 10; i++)
+	try
 	{
-		LOG_INFO << "******************************";
-		LOG_INFO << "Running test number: " << i;
-		if (!TryRunInjectTest(L"D:/Tester/x86", false))
+		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
+		plog::init(plog::verbose, &ColorConsoleLogger);
+
+		// set up command line options
+		cxxopts::Options options(argv[0], " - FunInjectorTester command line options");
+
+		options.add_options("Testing")
+			("p,tpath", "Path to location of testing binaries")
+			("t,tries", "Amount of tries to do in a loop")
+			("help", "Shows detailed information on all the commands");
+
+		auto ParseResult = options.parse(argc, argv);
+		if (ParseResult.count("help") > 0)
 		{
-			FailCounter++;
+			std::cout << options.help({ "Testing" }) << std::endl;
+			return 0;
 		}
-		LOG_INFO << "Concluded test number: " << i;
-		LOG_INFO << "******************************";
+
+		if (ParseResult.count("tpath") == 0)
+		{
+			LOG_ERROR << L"Did not pass the path to the binaries, cannot continue";
+			return -2;
+		}
+
+		// This path is needed to see the location of the needed binaries, the test process and test dll
+		auto BinariesPath = std::filesystem::path(ParseResult["tpath"].as< std::string >());
+		
+		// Set up a text file logger for convinience
+		auto TextLoggerPath = BinariesPath / "TesterLog.log";
+		plog::RollingFileAppender<plog::TxtFormatter> FileLogger(TextLoggerPath.wstring().c_str(), 100000000, 100);
+		plog::init(plog::debug, &FileLogger);
+
+		//
+		int TryAmount = 100;
+		if (ParseResult.count("tries") > 0)
+		{
+			TryAmount = ParseResult["tries"].as<int>();
+		}
+
+		auto TesterFunction = [&](const auto& Path, const int IterationAmount)
+		{
+			int FailCounter = 0;
+			for (int i = 0; i < IterationAmount; i++)
+			{
+				LOG_INFO << "******************************";
+				LOG_INFO << "Running test number: " << i;
+				if (!TryRunInjectTest(Path.wstring(), true))
+				{
+					FailCounter++;
+				}
+				LOG_INFO << "Concluded test number: " << i;
+				LOG_INFO << "******************************";
+			}
+
+			LOG_INFO << L"Tester has concluded with: " << FailCounter << L", fails out of " << IterationAmount << " tries for path: " << Path.wstring();
+		};
+
+		auto InjectionTaskFutures = std::vector< std::future<void>>({ std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4),
+			std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4), std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4),
+			std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4) });
+
+		for (auto& Future : InjectionTaskFutures)
+		{
+			Future.get();
+		}
+
+		return 0;
+	}
+	catch (...)
+	{
+		std::cout << L"Exception occured while running tests, aborting";
+		return -1;
 	}
 
-	LOG_INFO << L"Tester has concluded with: " << FailCounter << L", fails out of 500 tries for 32bit process";
-	LOG_INFO << L"Starting 64bit injection tester!";
-	*/
-	int FailCounter = 0;
-	for (int i = 0; i < 10; i++)
-	{
-		LOG_INFO << "******************************";
-		LOG_INFO << "Running test number: " << i;
-		if (!TryRunInjectTest(L"D:/Tester/x64", true))
-		{
-			FailCounter++;
-		}
-		LOG_INFO << "Concluded test number: " << i;
-		LOG_INFO << "******************************";
-	}
-
-	LOG_INFO << L"Tester has concluded with: " << FailCounter << L", fails out of 500 tries for 64bit process";
-	return 0;
 }
 
