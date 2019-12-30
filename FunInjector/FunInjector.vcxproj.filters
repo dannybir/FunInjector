@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
     <Filter Include="Utils">
       <UniqueIdentifier>{2ec2746b-e996-4ef8-a664-eaade6a271af}</UniqueIdentifier>
     </Filter>
@@ -26,6 +22,10 @@
     </Filter>
     <Filter Include="ErrorHandler">
       <UniqueIdentifier>{4ed5ac29-05e8-4fc1-b1fe-ac00f8470989}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils\Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -80,13 +80,16 @@
     <ClInclude Include="ProcessInjectorBase.h">
       <Filter>Injectors</Filter>
     </ClInclude>
+    <ClInclude Include="NtDeclarations.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Utils\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FunInjectorAPI.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Utils\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FuncHookProcessInjector.cpp">
       <Filter>Injectors</Filter>
@@ -113,12 +116,12 @@
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Utils\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FunInjector.def">
-      <Filter>Source Files</Filter>
+      <Filter>Utils\Source Files</Filter>
     </None>
   </ItemGroup>
 </Project>

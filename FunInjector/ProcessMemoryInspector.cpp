@@ -5,7 +5,7 @@
 namespace FunInjector::ProcessInspector
 {
 	ProcessMemoryInspector::ProcessMemoryInspector(wil::shared_handle ProcHandle)
-		: ProcessHandle( ProcHandle )
+		: ProcessHandle(ProcHandle)
 	{
 	}
 
@@ -37,7 +37,7 @@ namespace FunInjector::ProcessInspector
 		return ByteBuffer();
 	}
 
-	EOperationStatus ProcessMemoryInspector::WriteBufferToProcess( const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
+	EOperationStatus ProcessMemoryInspector::WriteBufferToProcess(const ByteBuffer& WriteBuffer, DWORD64 WriteAddress, SIZE_T WriteSize) const noexcept
 	{
 		HANDLE_EXCEPTION_BEGIN;
 
@@ -187,6 +187,76 @@ namespace FunInjector::ProcessInspector
 
 		HANDLE_EXCEPTION_END;
 		return 0;
+	}
+
+	using BaseAndSizeOptional = std::optional< std::pair<DWORD64, DWORD> >;
+	BaseAndSizeOptional ProcessMemoryInspector::FindClosestImageBaseAndSize(DWORD64 ScanLocation, bool ScanDown) const noexcept
+	{
+		HANDLE_EXCEPTION_BEGIN;
+
+		PVOID ScanLocationPtr = reinterpret_cast<PVOID>(ScanLocation);
+
+		// Get information about the memory layout at the start of the scan location
+		MEMORY_BASIC_INFORMATION MemInfo{ 0 };
+		if (VirtualQueryEx(ProcessHandle.get(), ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
+		{
+			LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
+			return std::nullopt;
+		}
+
+		// Keep trying to find a region big enough to fit 
+		while (MemInfo.Type != MEM_IMAGE)
+		{
+			// Go up/down in addresses depenending on ScanDown parameter, skip entire unwanted regions
+			int DirectionMultiplier = (ScanDown) ? -1 : 1;
+			ScanLocationPtr = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocationPtr) + (DirectionMultiplier * MemInfo.RegionSize));
+
+			if (VirtualQueryEx(ProcessHandle.get(), ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
+			{
+				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
+				return std::nullopt;
+			}
+
+			if (reinterpret_cast<DWORD64>(MemInfo.BaseAddress) == 0)
+			{
+				// Probably reached memory start here and found nothing
+				LOG_WARNING << L"While looking for an image, got to region with BaseAddress = 0";
+				return std::nullopt;
+			}
+		}
+
+		// If we got here , we found the start of the image
+		DWORD64 ImageBase = reinterpret_cast<DWORD64>( ScanLocationPtr );
+
+		// Now we need to calculate the size, to do this, we keep scanning until we reach a memory region
+		// that its type is not a MEM_IMAGE
+		// An image may be split into subregions, where each subregion represents a section of the PE file
+		DWORD ImageSize = 0;
+		while (MemInfo.Type == MEM_IMAGE)
+		{
+			ImageSize += MemInfo.RegionSize;
+
+			// Go up/down in addresses depenending on ScanDown parameter, skip entire unwanted regions
+			int DirectionMultiplier = (ScanDown) ? -1 : 1;
+			ScanLocationPtr = reinterpret_cast<PVOID>(reinterpret_cast<DWORD64>(ScanLocationPtr) + (DirectionMultiplier * MemInfo.RegionSize));
+
+			if (VirtualQueryEx(ProcessHandle.get(), ScanLocationPtr, &MemInfo, sizeof(MemInfo)) == 0)
+			{
+				LOG_ERROR << L"Tried to VirtualQuery memory address: " << std::hex << L", but this failed with Error= " << std::hex << GetLastError();
+				return std::nullopt;
+			}
+
+			if (reinterpret_cast<DWORD64>(MemInfo.BaseAddress) == 0)
+			{
+				// Probably reached memory start here and found nothing
+				LOG_WARNING << L"While looking for an image, got to region with BaseAddress = 0";
+				return std::nullopt;
+			}
+		}
+
+		return std::make_pair( ImageBase, ImageSize );
+
+		HANDLE_EXCEPTION_END_RET(std::nullopt);
 	}
 }
 

@@ -5,7 +5,7 @@
 namespace FunInjector
 {
 	// Create an alias for a byte sized value for convininience
-	using Byte = std::byte;
+	using Byte = unsigned char;
 
 	// All memory read or write function should return a byte buffer, which is just a std::vector of byte sized data type
 	using ByteBuffer = std::vector< Byte >;
@@ -19,7 +19,7 @@ namespace FunInjector
 		ByteBuffer IntegerBuffer;
 		auto IntegerSize = sizeof(IntegerType);
 
-		for (int ByteIndex = 0; ByteIndex < IntegerSize; ByteIndex++)
+		for (unsigned int ByteIndex = 0; ByteIndex < IntegerSize; ByteIndex++)
 		{
 			// Shift right by a byte, then mask everything apart from the LSB byte
 			Byte ByteVal = static_cast<Byte>( (Integer >> 8 * ByteIndex) & 0xFF );
@@ -80,14 +80,17 @@ namespace FunInjector
 		Target.insert(Target.end(), Source.cbegin(), Source.cend());
 	}
 
-
-	static std::wstring BufferToString(const ByteBuffer& Buffer)
+	template <typename CharType>
+	static std::basic_string< CharType, std::char_traits<CharType>, std::allocator<CharType>>
+		BufferToString(const ByteBuffer& Buffer)
 	{
-		std::wostringstream StrStream;
+		
+		using StringStream = std::basic_ostringstream< CharType, std::char_traits<CharType>, std::allocator<CharType>>;
 
+		StringStream StrStream;
 		for (const auto& Byte : Buffer)
 		{
-			StrStream << " " << std::hex << static_cast<int>(Byte) << " ";
+			StrStream << static_cast<CharType>(Byte);
 		}
 
 		return StrStream.str();

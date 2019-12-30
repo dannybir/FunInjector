@@ -21,7 +21,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		plog::init(plog::debug, &FileLogger);
 
 		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
-		plog::init(plog::debug, &ColorConsoleLogger);
+		plog::init(plog::verbose, &ColorConsoleLogger);
 	}
 	return TRUE;
 }

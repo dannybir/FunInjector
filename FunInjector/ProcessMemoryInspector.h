@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ProcessInformationInspector.h"
+#include "NtDeclarations.h"
 
 namespace FunInjector::ProcessInspector
 {
@@ -29,6 +30,9 @@ namespace FunInjector::ProcessInspector
 		// Utilizies the two previous functions to scan the memory and locate a free memory region which could be allocated
 		// Returns the address to the beginning of aformentioned memory region
 		DWORD64 FindAndAllocateExecuteMemoryInProcess(DWORD64 BaseSearchAddress, SIZE_T AllocSize) const noexcept;
+
+		using BaseAndSizeOptional = std::optional< std::pair<DWORD64, DWORD> >;
+		BaseAndSizeOptional FindClosestImageBaseAndSize(DWORD64 ScanLocation, bool ScanDown = true) const noexcept;
 
 	private:
 		// A *valid* handle for the process, must contain needed access rights

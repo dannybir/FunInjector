@@ -12,20 +12,62 @@ namespace FunInjector
 		{
 			return
 			{
-				// mov rcx, Operand: Address to path to DLL
-				{ 0x48_b,0xb9_b, DWORD64_OPERAND},
+				// push rbp
+				{ 0x55_b },
 
-				// mov rdi, Operand: Pointer to LoadLibrary function
-				{ 0x48_b,0xbf_b,DWORD64_OPERAND},
+				// mov rbp, rsp
+				{ 0x48_b, 0x89_b, 0xe5_b },
 
-				// sub rsp,54
-				{ 0x48_b, 0x83_b, 0xec_b, 0x28_b},
+				// Note on this: Research shows that stack free space
+				// must be big enough to hold future variables
+				// i.e we need to move the stack pointer down enough to
+				// allow for room
+				// Research shows that 0x40 is enough, a number lower
+				// may cause a crash.
+				// sub rsp, 40h
+				{ 0x48_b, 0x83_b, 0xec_b, 0x40_b},
+
+				// rbp - 10 = local variable will hold the UNICODE_STRING structure
+				// lea rcx, [ rbp - 10 ]
+				{ 0x48_b, 0x8d_b, 0x4d_b, 0xf0_b },
+
+				// mov rdx, Operand: Address to path to DLL
+				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
+
+				// mov rdi, Operand: Pointer to RtlInitUnicodeString  function
+				{ 0x48_b,0xbf_b, DWORD64_OPERAND},
 
 				// call rdi
 				{ 0xff_b, 0xd7_b },
 
-				// add rsp,54
-				{ 0x48_b, 0x83_b, 0xc4_b, 0x28_b },
+				// rbp - 10 now has a unicode string structure that can be used for LdrLoadDll
+
+				// mov r9, Operand = Out module handle
+				{ 0x49_b, 0xb9_b, DWORD64_OPERAND},
+
+				// lea r8, [ rbp - 10 ] Module filepath - unicode string set up earlier
+				{ 0x4c_b, 0x8d_b, 0x45_b, 0xf0_b },
+
+				// mov rdx, Operand = PathToFile 
+				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
+
+				// mov rcx, Operand = flags
+				{ 0x48_b, 0xc7_b, 0xc1_b, DWORD_OPERAND},
+
+				// mov rdi, Operand: Pointer to LdrLoadDll  function
+				{ 0x48_b,0xbf_b, DWORD64_OPERAND},
+
+				// call rdi
+				{ 0xff_b, 0xd7_b },
+
+				// add rsp, 40h
+				{ 0x48_b, 0x83_b, 0xc4_b, 0x40_b },
+
+				// mov rsp,rbp
+				{ 0x48_b, 0x89_b, 0xec_b },
+
+				// pop rbp
+				{ 0x5d_b }
 			};
 		}
 
@@ -54,23 +96,32 @@ namespace FunInjector
 		{
 			return
 			{
+				// TODO: This fails with access denied last error on x64
+				// No crash, the function just fails
+				// Need to check if parameters are correctly passed
+				// sub rsp,54
+				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b},
+
 				// mov r9, Operand Old protect pointer
 				{ 0x49_b, 0xb9_b, DWORD64_OPERAND},
 
-				// mov r8, Operand = New Protect Value
-				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
+				// push r9
+				{ 0x41_b, 0x51_b },
 
-				// mov rdx, Operand = Size of Memory to protect
-				{ 0x48_b, 0xc7_b, 0xc2_b, DWORD_OPERAND},
+				// mov r9, Operand = New Protect Value
+				{ 0x49_b, 0xc7_b, 0xc1_b, DWORD_OPERAND},
 
-				// mov rcx, Operand = Target Protect Address
-				{ 0x48_b, 0xb9_b, DWORD64_OPERAND},
+				// mov r8, Operand = Size of Memory to protect
+				{ 0x49_b, 0xb8_b, DWORD64_OPERAND},
 
-				// mov rdi, Operand = Pointer to VirtualProtect
+				// mov rdx, Operand = Target Protect Address
+				{ 0x48_b, 0xba_b, DWORD64_OPERAND},
+
+				// GetCurrentProcess , i.e (HANDLE-1) placed into rcx
+				{ 0x48_b, 0x83_b, 0xc9_b, 0xff_b },
+
+				// mov rdi, Operand = Pointer to NtProtectVirtualMemory
 				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
-
-				// sub rsp,54
-				{ 0x48_b, 0x83_b, 0xec_b, 0x36_b},
 
 				// call rdi
 				{ 0xff_b, 0xd7_b},
@@ -84,14 +135,8 @@ namespace FunInjector
 		{
 			return 
 			{
-				// mov rdi, Operand: Pointer to GetCurrentProcess function
-				{ 0x48_b, 0xbf_b, DWORD64_OPERAND},
-
-				// call rdi ( GetCurrentProcess )
-				{ 0xff_b, 0xd7_b },
-
-				// mov rcx, rax
-				{ 0x48_b, 0x89_b, 0xc1_b},
+				// GetCurrentProcess , i.e (HANDLE-1) placed into rcx
+				{ 0x48_b, 0x83_b, 0xc9_b, 0xff_b },
 
 				// mov r8, Operand: Size to copy
 				{ 0x49_b, 0xc7_b, 0xc0_b, DWORD_OPERAND},
@@ -131,9 +176,6 @@ namespace FunInjector
 				{0x41_b, 0x55_b},
 				{0x41_b, 0x56_b},
 				{0x41_b, 0x57_b},
-
-				// sub rsp,54
-				//{ 0x48_b, 0x83_b, 0xec_b, 0x36_b}
 			};
 		}
 
@@ -141,9 +183,6 @@ namespace FunInjector
 		{
 			return
 			{
-				// add rsp,54
-				//{ 0x48_b, 0x83_b, 0xc4_b, 0x36_b },
-
 				{0x41_b, 0x5f_b},
 				{0x41_b, 0x5e_b},
 				{0x41_b, 0x5d_b},

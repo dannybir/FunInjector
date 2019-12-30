@@ -26,7 +26,6 @@ namespace FunInjector::ProcessInspector
 			auto ProcModuleInspector = std::make_shared< ProcessModuleInspector >(ProcessHandle);
 			ProcModuleInspector->AttachMemoryInspector(ProcMemInspector);
 			ProcModuleInspector->AttachInfoInspector(ProcInfoInspector);
-			ProcModuleInspector->LoadInformation();
 
 			auto ProcFuncInspector = std::make_shared< ProcessFunctionInspector >(ProcessHandle);
 			ProcFuncInspector->AttachMemoryInspector(ProcMemInspector);
@@ -34,11 +33,11 @@ namespace FunInjector::ProcessInspector
 
 			Inspectors = std::make_tuple(ProcInfoInspector, ProcMemInspector, ProcModuleInspector, ProcFuncInspector);
 
-			HANDLE_EXCEPTION_END(EOperationStatus::FAIL);
-
-			LOG_DEBUG << L"Successefuly created all process inspectors, they are now ready to use for handle: " 
+			LOG_DEBUG << L"Successefuly created all process inspectors, they are now ready to use for handle: "
 				<< std::hex << ProcessHandle.get();
 			return EOperationStatus::SUCCESS;
+
+			HANDLE_EXCEPTION_END_RET(EOperationStatus::FAIL);
 		}
 
 		template <class InspectorType>

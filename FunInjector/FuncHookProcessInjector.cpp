@@ -52,6 +52,21 @@ namespace FunInjector
 
 		PrepareProcessInspector();
 
+		ProcessInformationInspector CurrentProcessInspector = ProcessInformationInspector(wil::shared_handle(GetCurrentProcess()));
+		CurrentProcessInspector.RetrieveInformation();
+
+		// Check whether the injection can be performed by the current host process
+		if (GET_INSPECTOR(ProcessInformationInspector)->IsProcess64Bit
+			&&
+			!CurrentProcessInspector.IsProcess64Bit)
+		{
+			// Current host process is a 32bit process
+			// Target process is a 64 bit process
+			// As a result, we must use a 64bit host process to perform the injection
+			LOG_WARNING << L"Must switch to use a 64bit host of the injector, injection target is a 64bit, current host is 32bit";
+			return EOperationStatus::USE_64_HOST;
+		}
+
 		// Prepare the code manager, initiate it using the target process bitness so it could create correct assembly code
 		CodeManager = AssemblyCodeManager( GET_INSPECTOR(ProcessInformationInspector)->IsProcess64Bit ? ECodeBitnessMode::X64 : ECodeBitnessMode::X86 );
 
@@ -61,14 +76,16 @@ namespace FunInjector
 		// It could continue normally
 		CodeManager.AddAssemblyCode(L"PushRegisters", ECodeType::PUSH_REGISTERS);
 
-		// Must remove protection from the target function beginning so we could overwrite our jump
-		CodeManager.AddAssemblyCode(L"RemoveProtection", ECodeType::VIRTUAL_PROTECT);
-
 		// Restore the original target function beginning, this set of instructions use memcpy to do that
 		CodeManager.AddAssemblyCode(L"CopyOriginalFunction", ECodeType::MEMCOPY);
 
 		// This flushes the CPU instruction cache in the area of the restored code
 		CodeManager.AddAssemblyCode(L"FlushInstructionCache", ECodeType::FLUSH_INSTRUCTION);
+
+		// Restores the protection to the code we changed
+		// Don't restore protection for now, it dosent work well in 64bit
+		// And not really required for the injection to be successeful
+		//CodeManager.AddAssemblyCode(L"RestoreProtection", ECodeType::VIRTUAL_PROTECT);
 
 		// This simply calls LoadLibrary to finally load the DLL we want to inject
 		// There is no check to see if the DLL was loaded or not ( For now? )
@@ -96,7 +113,7 @@ namespace FunInjector
 		// We need some free area to put our injected assembly and data that the code will use
 		SIZE_T PayloadSize = PayloadData.GetTotalDataSize() + CodeManager.GetTotalCodeSize();
 		PayloadAddress = ProcessInspector.GetInspectorByType<ProcessMemoryInspector>()->FindAndAllocateExecuteMemoryInProcess(
-			ProcessInspector.GetInspectorByType<ProcessModuleInspector>()->GetModuleAddress("ntdll"), PayloadSize + 0x50);
+			ProcessInspector.GetInspectorByType<ProcessModuleInspector>()->GetModuleAddress("ntdll.dll"), PayloadSize + 0x50);
 
 		if (PayloadAddress == 0)
 		{
@@ -137,27 +154,40 @@ namespace FunInjector
 		}
 
 		ProcessInspector.InitializeInspectors(ProcessHandle);
+
+		// We only need to get the target module really for the injection
+		GET_INSPECTOR(ProcessModuleInspector)->LoadInformation(std::wstring(TargetModuleName.begin(), TargetModuleName.end()));
 	}
 
 	void FuncHookProcessInjector::PrepareAssemblyCodePayload()
 	{
-		CodeManager.ModifyOperandsFor(L"RemoveProtection",
+		// Remove protection from the function prologue that we would like to hook
+		// We would need to restore this protection when the hook self-deletes
+		DWORD OriginalProtect = 0;
+		if (!VirtualProtectEx(ProcessHandle.get(),
+			reinterpret_cast<PVOID>(TargetFunctionAddress), TARGET_FUNCTION_BACKUP_SIZE, PAGE_EXECUTE_READWRITE, &OriginalProtect))
+		{
+			THROW_EXCEPTION_FORMATTED_MESSAGE( L"Failed to change protection of address: " << std::hex << TargetFunctionAddress
+				<< L", to: PAGE_EXECUTE_READWRITE, injection won't be possible" );
+		}
+
+		CodeManager.ModifyOperandsFor(L"RestoreProtection",
 			{
 				// lpflOldProtect
 				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"OldCodeProtection"))},
 
 				// NewProtect
-				{static_cast<DWORD>(PAGE_EXECUTE_READWRITE)},
+				{OriginalProtect},
 
 				// Code size
-				{static_cast<DWORD>(TARGET_FUNCTION_BACKUP_SIZE)},
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"CodeRegionSize"))},
 
 				// Target Address
-				{CodeManager.TranslateOperandSize( TargetFunctionAddress )},
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"TargetFunctionAddress"))},
 
 				// Function pointer
 				{CodeManager.TranslateOperandSize(
-				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("VirtualProtect","kernelbase"))}
+				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("NtProtectVirtualMemory","ntdll.dll"))}
 			}
 		);
 
@@ -174,16 +204,13 @@ namespace FunInjector
 				
 				// Function pointer
 				{CodeManager.TranslateOperandSize(
-				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("memcpy","ntdll"))}
+				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("memcpy","ntdll.dll"))}
 
 			}
 		);
 
 		CodeManager.ModifyOperandsFor(L"FlushInstructionCache",
 			{
-				{CodeManager.TranslateOperandSize(
-				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("GetCurrentProcess","kernelbase"))},
-
 				// Size of code to flush
 				{static_cast<DWORD>(TARGET_FUNCTION_BACKUP_SIZE)},
 
@@ -191,7 +218,7 @@ namespace FunInjector
 				{CodeManager.TranslateOperandSize(TargetFunctionAddress)},
 				
 				{CodeManager.TranslateOperandSize(
-					GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("FlushInstructionCache","kernelbase"))}
+					GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("NtFlushInstructionCache","ntdll.dll"))}
 
 			}
 			);
@@ -199,9 +226,12 @@ namespace FunInjector
 		CodeManager.ModifyOperandsFor(L"LoadInjectedDLL",
 			{
 				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"DllPath"))},
-				{CodeManager.TranslateOperandSize(
-				GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("LoadLibraryW","kernelbase"))}
+				{CodeManager.TranslateOperandSize(GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("RtlInitUnicodeString","ntdll.dll"))},
 
+				{CodeManager.TranslateOperandSize(PayloadData.GetDataLocationByName(L"InjectedModuleAddresAfterLoad"))},
+				{CodeManager.TranslateOperandSize(static_cast<DWORD64>(0))},			
+				{static_cast<DWORD>(0)},
+				{CodeManager.TranslateOperandSize( GET_INSPECTOR(ProcessFunctionInspector)->GetRemoteFunctionAddress("LdrLoadDll","ntdll.dll") )}
 			}
 		);
 
@@ -224,8 +254,16 @@ namespace FunInjector
 		PayloadData.AddData(L"TargetFunctionBackup", 
 			GET_INSPECTOR(ProcessMemoryInspector)->ReadBufferFromProcess(TargetFunctionAddress, TARGET_FUNCTION_BACKUP_SIZE));
 
-		// 
+		// Used for the removal of code protection
 		PayloadData.AddData(L"OldCodeProtection", 0);
+		PayloadData.AddData(L"CodeRegionSize", TARGET_FUNCTION_BACKUP_SIZE);
+
+		PayloadData.AddData(L"TargetFunctionAddress", 
+			((GET_INSPECTOR(ProcessInformationInspector)->IsProcess64Bit)
+				? TargetFunctionAddress : static_cast<DWORD>(TargetFunctionAddress)));
+
+		// Used for Dll loading
+		PayloadData.AddData(L"InjectedModuleAddresAfterLoad", 0);
 
 		AppendBufferToBuffer(PayloadBuffer, PayloadData.ConvertDataToBuffer());
 	}

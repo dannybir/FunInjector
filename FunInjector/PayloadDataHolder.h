@@ -4,7 +4,7 @@
 
 namespace FunInjector
 {
-	using DataType = std::variant< std::wstring, ByteBuffer, int >;
+	using DataType = std::variant< std::wstring, ByteBuffer, int, DWORD, DWORD64 >;
 	class PayloadDataHolder
 	{
 

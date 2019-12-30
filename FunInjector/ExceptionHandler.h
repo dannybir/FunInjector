@@ -1,9 +1,11 @@
 #pragma once
 
+#include <dbghelp.h>
 #include <string_view>
 #include <string>
 #include <sstream>
 #include <exception>
+#include <functional>
 
 namespace ExceptionHandler
 {
@@ -115,7 +117,7 @@ namespace ExceptionHandler
 					Symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 
 					auto AddressAtFrame = reinterpret_cast<DWORD64>(StackFrames[FrameIndex]);
-					auto ModuleBase = SymGetModuleBase(GetCurrentProcess(), AddressAtFrame);
+					auto ModuleBase = SymGetModuleBase(GetCurrentProcess(), static_cast<DWORD>(AddressAtFrame));
 					auto ModuleName = std::filesystem::path(GetModulePathByBase(ModuleBase)).filename().string();
 
 					if (SymFromAddr(GetCurrentProcess(), AddressAtFrame, nullptr, Symbol))

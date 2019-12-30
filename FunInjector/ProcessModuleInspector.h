@@ -1,13 +1,12 @@
 #pragma once
 
 #include "pch.h"
-#include <Psapi.h>
 #include "ProcessMemoryInspector.h"
+#include <Psapi.h>
 #include <functional>
 
 namespace FunInjector::ProcessInspector
 {
-//
 	enum class EModuleBitness : uint8_t
 	{
 		BIT_64,
@@ -33,18 +32,6 @@ namespace FunInjector::ProcessInspector
 		}
 	};
 
-	// Function pointers definiton to functions in PSAPI.dll
-	using FEnumProcessModulesExPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE * lphModule, DWORD cb, LPDWORD lpcbNeeded, DWORD dwFilterFlag);
-	using FGetModuleFileNameExWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
-	using FGetModuleBaseNameWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
-	using FGetModuleInformationPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPMODULEINFO pmi, DWORD nSize);
-
-	// Maximum amount of modules we can enumerate, should probably never pass this number for sane applications
-	constexpr auto MAX_ENUMERATED_MODULE_NUM = 512;
-
-	// Maximum string length for stack defined character arrays that are used here for simplicity and WinApi compatibility
-	constexpr auto MAX_STRING_LEN = 2048;
-
 	struct ModuleInformation
 	{
 		std::filesystem::path ModulePath;
@@ -57,12 +44,24 @@ namespace FunInjector::ProcessInspector
 		ByteBuffer			  ModuleBuffer; 
 	};
 
+	// Function pointers definiton to functions in PSAPI.dll
+	using FEnumProcessModulesExPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE * lphModule, DWORD cb, LPDWORD lpcbNeeded, DWORD dwFilterFlag);
+	using FGetModuleFileNameExWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
+	using FGetModuleBaseNameWPtr = DWORD(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPWSTR lpFilename, DWORD nSize);
+	using FGetModuleInformationPtr = BOOL(__stdcall *)(HANDLE hProcess, HMODULE hModule, LPMODULEINFO pmi, DWORD nSize);
+
+	// Maximum amount of modules we can enumerate, should probably never pass this number for sane applications
+	constexpr auto MAX_ENUMERATED_MODULE_NUM = 512;
+
+	// Maximum string length for stack defined character arrays that are used here for simplicity and WinApi compatibility
+	constexpr auto MAX_STRING_LEN = 2048;
+
 	class ProcessModuleInspector
 	{
 	public:
 		ProcessModuleInspector(wil::shared_handle ProcHandle);
 
-		EOperationStatus LoadInformation() noexcept;
+		EOperationStatus LoadInformation(const std::wstring& SpecificModuleName = L"") noexcept;
 
 		// Return the absolute address of a module in remote process memory
 		DWORD64 GetModuleAddress(const std::string &ModuleName, 
@@ -94,18 +93,53 @@ namespace FunInjector::ProcessInspector
 		// Throws an exception if it fails
 		const ModuleInformation& GetModuleByName(const std::string & ModuleName, EModuleBitness ModBitness) const;
 
-		// Reads a module from the target process to a buffer
-		ByteBuffer ReadModuleToBuffer(DWORD64 ModuleBaseAddress, DWORD64 ModuleSize) const;
+		// Will retrieve all needed information and add a ModuleInfo object to the map
+		void ProcessNewModule(const DWORD64 ModuleBase, const DWORD ModuleSize);
 
-		// Using a buffer containing the module, determines if its a 64bit module
-		bool IsModule64bitInternal(ByteBuffer& ModuleBuffer) const;
+		// Loads module information using the regular method
+		// of module enumeration
+		//void LoadInformationInternal(const std::wstring& SpecificModuleName = L"");
 
+		// Loads module information using iteration on the LDR that
+		// is specified in the target process PEB
+		// This should only be used for 64bit processes
+		// Unused, kept for future reference
+		//void LoadInformationInternalWithPeb64(const std::wstring& SpecificModuleName = L"");
+
+		/*
+		
+		// Helper function, easily read a certain structure from the target process memory
+		template <typename StructType>
+		bool TryGetStructFromRemoteProcess(DWORD64 RemoteStructPtr, StructType* Struct)
+		{
+			auto Buffer = ProcMemInspector->ReadBufferFromProcess(RemoteStructPtr, sizeof(StructType));
+			if (Buffer.size() == 0)
+			{
+				LOG_ERROR << L"Failed to retrieve the buffer of structure: " << typeid(StructType).name();
+				return false;
+			}
+
+			if (Struct == nullptr)
+			{
+				return false;
+			}
+
+			std::memcpy(Struct, &Buffer[0], sizeof(StructType));
+			return true;
+		}
+		*/
 	private:
+		/*
 		// Function pointers to psapi.dll functions
 		FEnumProcessModulesExPtr EnumProcessModulesExPtr = nullptr;
 		FGetModuleFileNameExWPtr GetModuleFilenameExWPtr = nullptr;
 		FGetModuleBaseNameWPtr	 GetModuleBaseNameWPtr = nullptr;
 		FGetModuleInformationPtr GetModuleInformationPtr = nullptr;
+
+		// Address of the remote process PEB structure
+		// Will be found by the Prepare function
+		DWORD64 PebAddress = 0;
+		*/
 
 		// An array of ModuleInformation structures, which contain important information about each module
 		// The key is a combination of the module name and its bitness

@@ -11,7 +11,7 @@ namespace FunInjector::ProcessInspector
 	DWORD64 ProcessFunctionInspector::GetRemoteFunctionAddress(const std::string_view FunctionName, const std::string_view ModuleName)
 	{
 		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName.data());
-		auto ModuleBuffer = GetBufferOfModule(ModuleName.data());
+		auto ModuleBuffer = ProcModuleInspector->GetModuleBufferByName(ModuleName.data());
 
 		if (ModuleBuffer.size() == 0)
 		{
@@ -53,7 +53,7 @@ namespace FunInjector::ProcessInspector
 		}
 
 		auto ExportDirectory = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(ModBaseInBuffer + RvaToExportDir);
-
+		
 		// A pointer to a list of DWORD sized variables that describe the address of the function relative to the module base
 		const auto FunctionListPtr = reinterpret_cast<DWORD*>(ModBaseInBuffer + ExportDirectory->AddressOfFunctions);
 
@@ -92,19 +92,5 @@ namespace FunInjector::ProcessInspector
 		
 		LOG_WARNING << L"Was not able to find address of function: " << FunctionName << L", in the export table";
 		return 0;
-	}
-
-	ByteBuffer ProcessFunctionInspector::GetBufferOfModule(const std::string & ModuleName) const
-	{
-		auto ModuleAddress = ProcModuleInspector->GetModuleAddress(ModuleName);
-		auto ModuleSize = ProcModuleInspector->GetModuleSize(ModuleName);
-
-		if (ModuleAddress == 0 || ModuleSize == 0)
-		{
-			return ByteBuffer();
-		}
-
-		// May return an empty buffer if something goes wrong
-		return ProcMemInspector->ReadBufferFromProcess(ModuleAddress, static_cast<size_t>(ModuleSize));
 	}
 }

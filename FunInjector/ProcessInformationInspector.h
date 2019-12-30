@@ -4,6 +4,12 @@
 
 namespace FunInjector::ProcessInspector
 {
+#ifdef _WIN64
+	constexpr auto IsContainer64Bit = true;
+#else
+	constexpr auto IsContainer64Bit = false;
+#endif
+
 	class ProcessInformationInspector
 	{
 	public:

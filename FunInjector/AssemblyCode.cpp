@@ -107,11 +107,11 @@ namespace FunInjector
 
 		auto OperandVisitor = [&](auto&& Value)
 		{
-			auto ByteArrString = BufferToString(IntegerToByteBuffer(Value));
+			auto ByteArrString = BufferToString<wchar_t>(IntegerToByteBuffer(Value));
 			StrStream << ByteArrString << "(" << std::hex << Value << ")";
 		};
 
-		StrStream << "[" << BufferToString(OpCodeBuffer) << "]";
+		StrStream << "[" << BufferToString<wchar_t>(OpCodeBuffer) << "]";
 		StrStream << "[";
 		for (auto& Operand : Operands)
 		{

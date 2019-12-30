@@ -3,7 +3,7 @@
 #include <Windows.h>
 #include <string_view>
 #include <array>
-
+#include <filesystem>
 
 #ifdef FUNINJECTOR_EXPORTS
 #define FUNINJECTOR_EXPORTS __declspec(dllexport) 
@@ -17,6 +17,7 @@ namespace FunInjector
 	{
 		SUCCESS = 0,
 		FAIL,
+		USE_64_HOST
 	};
 
 	enum class EInjectionType : uint8_t
@@ -40,6 +41,15 @@ namespace FunInjector
 		std::array< char, MaxStringLength> TargetFunctionName = { 0 };
 		std::array< char, MaxStringLength> TargetModuleName = { 0 };
 	};
+
+	// Please note that the CLI injector must receive a pid and not a handle
+	// TODO: Support handle receiving in the CLI = requires synchronization
+	EOperationStatus DelegateToCLIInjector(
+		const std::filesystem::path CLIInjectorPath,
+		const std::wstring_view DllPath,
+		const std::string_view TargetFunctionName,
+		const std::string_view TargetModuleName,
+		DWORD ProcessId = 0);
 
 	EOperationStatus InjectUsingFunctionHook(const std::wstring_view DllPath,
 		const std::string_view TargetFunctionName,
