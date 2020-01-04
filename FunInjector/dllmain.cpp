@@ -20,8 +20,8 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		static plog::RollingFileAppender<plog::TxtFormatter> FileLogger(L"D:/Tester/InjectorLog.log", 100000000, 100);
 		plog::init(plog::debug, &FileLogger);
 
-		static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
-		plog::init(plog::verbose, &ColorConsoleLogger);
+		//static plog::ColorConsoleAppender<plog::TxtFormatter> ColorConsoleLogger;
+		//plog::init(plog::verbose, &ColorConsoleLogger);
 	}
 	return TRUE;
 }

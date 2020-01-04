@@ -29,3 +29,18 @@ NtSetEvent(
 	_In_ HANDLE EventHandle,
 	_Out_opt_ PLONG PreviousState
 );
+
+extern "C" NTSYSAPI 
+NTSTATUS NTAPI RtlIntegerToUnicodeString(
+	ULONG           Value,
+	ULONG           Base,
+	PUNICODE_STRING String
+);
+
+extern "C" NTSYSAPI
+NTSTATUS
+NTAPI
+RtlAppendUnicodeStringToString(
+	_In_ PUNICODE_STRING Destination,
+	_In_ PUNICODE_STRING Source
+);

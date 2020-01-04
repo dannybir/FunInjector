@@ -158,6 +158,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>ntdll.lib</AdditionalDependencies>
       <EntryPointSymbol>DllMain</EntryPointSymbol>
+      <ShowProgress>NotSet</ShowProgress>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

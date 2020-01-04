@@ -18,8 +18,11 @@ using namespace std::chrono_literals;
 #include <plog/Appenders/ColorConsoleAppender.h>
 
 #include <future>
+#include <atomic>
 
-bool TryRunInjectTest(const std::filesystem::path& TesterBinariesPath, bool Is64BitTargetDll)
+#include <ProgressBar.hpp>
+
+bool TryRunInjectTest(const std::filesystem::path& TesterBinariesPath)
 {
 	// Default location:
 	auto TesterBinaryLocation = TesterBinariesPath;
@@ -84,7 +87,7 @@ bool TryRunInjectTest(const std::filesystem::path& TesterBinariesPath, bool Is64
 
 	// Create the trigger event that created processes will wait on
 	wil::unique_event_nothrow InjectedEvent;
-	std::wstring InjectedEventName = (Is64BitTargetDll) ? L"InjectedEvent64" : L"InjectedEvent32";
+	std::wstring InjectedEventName = L"InjectedEvent_" + std::to_wstring(ProcInfo.dwProcessId);
 	InjectedEvent.create(wil::EventOptions::None, InjectedEventName.c_str());
 
 	// Trigger the event so that injected dll can load
@@ -96,8 +99,7 @@ bool TryRunInjectTest(const std::filesystem::path& TesterBinariesPath, bool Is64
 		LOG_ERROR << L"Failed to inject TESTDLL.dll to the process, the injected event was not signaled";
 		return false;
 	}
-	
-	LOG_INFO << L"Injection successeful!";
+
 	return true;
 }
 
@@ -112,8 +114,9 @@ int main(int argc, char* argv[])
 		cxxopts::Options options(argv[0], " - FunInjectorTester command line options");
 
 		options.add_options("Testing")
-			("p,tpath", "Path to location of testing binaries")
-			("t,tries", "Amount of tries to do in a loop")
+			("p,tpath", "Path to location of testing binaries", cxxopts::value<std::string>())
+			("t,tries", "Amount of tries to do in a loop", cxxopts::value<int>())
+			("m,threads", "Amount of threads to spread the test on", cxxopts::value<int>())
 			("help", "Shows detailed information on all the commands");
 
 		auto ParseResult = options.parse(argc, argv);
@@ -129,8 +132,10 @@ int main(int argc, char* argv[])
 			return -2;
 		}
 
+		
 		// This path is needed to see the location of the needed binaries, the test process and test dll
-		auto BinariesPath = std::filesystem::path(ParseResult["tpath"].as< std::string >());
+		std::string BinariesPathStr = ParseResult["tpath"].as< std::string >();
+		auto BinariesPath = std::filesystem::path(BinariesPathStr);
 		
 		// Set up a text file logger for convinience
 		auto TextLoggerPath = BinariesPath / "TesterLog.log";
@@ -144,31 +149,52 @@ int main(int argc, char* argv[])
 			TryAmount = ParseResult["tries"].as<int>();
 		}
 
+		std::atomic<int> CurrentTry = 1;
+		std::atomic<int> FailCounter = 0;
+		std::mutex PrintMutex;
+
+		auto TimeBeforeStart = std::chrono::high_resolution_clock::now();
 		auto TesterFunction = [&](const auto& Path, const int IterationAmount)
 		{
-			int FailCounter = 0;
-			for (int i = 0; i < IterationAmount; i++)
+			for (;CurrentTry < IterationAmount; CurrentTry++)
 			{
-				LOG_INFO << "******************************";
-				LOG_INFO << "Running test number: " << i;
-				if (!TryRunInjectTest(Path.wstring(), true))
+				if (!TryRunInjectTest(Path.wstring()))
 				{
 					FailCounter++;
 				}
-				LOG_INFO << "Concluded test number: " << i;
-				LOG_INFO << "******************************";
-			}
 
-			LOG_INFO << L"Tester has concluded with: " << FailCounter << L", fails out of " << IterationAmount << " tries for path: " << Path.wstring();
+				std::lock_guard Guard(PrintMutex);
+				auto CurrentTime = std::chrono::high_resolution_clock::now();
+				auto PassedTimeInSeconds = std::chrono::duration_cast<std::chrono::seconds>(CurrentTime - TimeBeforeStart);
+
+				using PrecisionMinutes = std::chrono::duration<float, std::ratio<60>>;
+				std::cout << "**** Test " << CurrentTry << "/" << TryAmount << ", Fails: " << FailCounter << ", Passed Time: " 
+					<< std::fixed << PrecisionMinutes( PassedTimeInSeconds ).count() << "min" << "\r";
+			}
 		};
 
-		auto InjectionTaskFutures = std::vector< std::future<void>>({ std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4),
-			std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4), std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4),
-			std::async(std::launch::async, TesterFunction, BinariesPath, TryAmount / 4) });
-
-		for (auto& Future : InjectionTaskFutures)
+		int DefaultThreadsAmount = 1;
+		if (ParseResult.count("threads") > 0)
 		{
-			Future.get();
+			DefaultThreadsAmount = ParseResult["threads"].as<int>();
+		}
+
+		LOG_INFO << L"Starting tester function with path: " << BinariesPath.wstring() << L", and tries: " << TryAmount
+			<< L", threads: " << DefaultThreadsAmount;
+
+		std::vector< std::thread > TesterThreads;
+		for (int Index = 0; Index < DefaultThreadsAmount; Index++)
+		{
+			std::thread TesterThread([=]()
+			{
+				TesterFunction(BinariesPath, TryAmount / DefaultThreadsAmount);
+			});
+			TesterThreads.push_back(std::move(TesterThread));
+		}
+
+		for (auto& Thread : TesterThreads)
+		{
+			Thread.join();
 		}
 
 		return 0;
